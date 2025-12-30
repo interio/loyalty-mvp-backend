@@ -24,7 +24,7 @@ public interface ICustomerService
 /// <summary>
 /// Customer module application service (profile + cached balance wiring).
 /// </summary>
-public class CustomerService : ICustomerService
+public class CustomerService : ICustomerService, ICustomerLookup
 {
     private readonly LoyaltyDbContext _db;
 
@@ -81,4 +81,8 @@ public class CustomerService : ICustomerService
         await _db.SaveChangesAsync(ct);
         return customer;
     }
+
+    /// <inheritdoc />
+    public Task<bool> BelongsToTenantAsync(Guid customerId, Guid tenantId, CancellationToken ct = default) =>
+        _db.Customers.AnyAsync(c => c.Id == customerId && c.TenantId == tenantId, ct);
 }

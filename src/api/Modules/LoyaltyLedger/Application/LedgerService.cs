@@ -1,4 +1,5 @@
 using Loyalty.Api.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Customers.Application;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,9 +24,14 @@ public interface ILedgerService
 public class LedgerService : ILedgerService
 {
     private readonly LoyaltyDbContext _db;
+    private readonly IUserLookup _users;
 
     /// <summary>Constructs the ledger service.</summary>
-    public LedgerService(LoyaltyDbContext db) => _db = db;
+    public LedgerService(LoyaltyDbContext db, IUserLookup users)
+    {
+        _db = db;
+        _users = users;
+    }
 
     /// <inheritdoc />
     public Task<List<PointsTransaction>> GetTransactionsForCustomerAsync(Guid customerId, int take = 200, CancellationToken ct = default) =>
@@ -46,7 +52,7 @@ public class LedgerService : ILedgerService
             throw new Exception("Reason is required.");
 
         // Validate actor user belongs to the same customer.
-        var actor = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == command.ActorUserId, ct);
+        var actor = await _users.GetAsync(command.ActorUserId, ct);
         if (actor is null)
             throw new Exception("Actor user not found.");
         if (actor.CustomerId != command.CustomerId)

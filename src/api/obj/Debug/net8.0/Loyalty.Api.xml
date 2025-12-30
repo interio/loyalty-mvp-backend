@@ -237,6 +237,21 @@
         <member name="M:Loyalty.Api.Migrations.AddPointsTransactionImmutability.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Application.ICustomerLookup">
+            <summary>Read-only contract for customer lookups (cross-module safe).</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.ICustomerLookup.GetAsync(System.Guid,System.Threading.CancellationToken)">
+            <summary>Retrieve a customer by id.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.ICustomerLookup.BelongsToTenantAsync(System.Guid,System.Guid,System.Threading.CancellationToken)">
+            <summary>Check if a customer belongs to the specified tenant.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Application.IUserLookup">
+            <summary>Read-only contract for user lookups (cross-module safe).</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.IUserLookup.GetAsync(System.Guid,System.Threading.CancellationToken)">
+            <summary>Retrieve a user by id.</summary>
+        </member>
         <member name="T:Loyalty.Api.Modules.Customers.Application.CreateCustomerCommand">
             <summary>Command for creating a customer/outlet.</summary>
         </member>
@@ -272,6 +287,9 @@
         <member name="M:Loyalty.Api.Modules.Customers.Application.CustomerService.CreateAsync(Loyalty.Api.Modules.Customers.Application.CreateCustomerCommand,System.Threading.CancellationToken)">
             <inheritdoc />
         </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.CustomerService.BelongsToTenantAsync(System.Guid,System.Guid,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
         <member name="T:Loyalty.Api.Modules.Customers.Application.CreateUserCommand">
             <summary>Command for creating a user under a customer.</summary>
         </member>
@@ -299,6 +317,9 @@
             <inheritdoc />
         </member>
         <member name="M:Loyalty.Api.Modules.Customers.Application.UserService.CreateAsync(Loyalty.Api.Modules.Customers.Application.CreateUserCommand,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.UserService.GetAsync(System.Guid,System.Threading.CancellationToken)">
             <inheritdoc />
         </member>
         <member name="T:Loyalty.Api.Modules.Customers.Domain.Customer">
@@ -398,7 +419,7 @@
             Ledger module application service (immutable transactions + cached balance).
             </summary>
         </member>
-        <member name="M:Loyalty.Api.Modules.LoyaltyLedger.Application.LedgerService.#ctor(Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.Modules.LoyaltyLedger.Application.LedgerService.#ctor(Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext,Loyalty.Api.Modules.Customers.Application.IUserLookup)">
             <summary>Constructs the ledger service.</summary>
         </member>
         <member name="M:Loyalty.Api.Modules.LoyaltyLedger.Application.LedgerService.GetTransactionsForCustomerAsync(System.Guid,System.Int32,System.Threading.CancellationToken)">

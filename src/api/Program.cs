@@ -24,7 +24,9 @@ if (string.IsNullOrWhiteSpace(cs))
 builder.Services.AddDbContext<LoyaltyDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<ICustomerLookup>(sp => (CustomerService)sp.GetRequiredService<ICustomerService>());
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IUserLookup>(sp => (UserService)sp.GetRequiredService<IUserService>());
 builder.Services.AddScoped<ILedgerService, LedgerService>();
 
 var app = builder.Build();

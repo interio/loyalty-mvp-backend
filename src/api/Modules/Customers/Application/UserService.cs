@@ -20,7 +20,7 @@ public interface IUserService
 /// <summary>
 /// Users application service (employees/actors) inside the Customers module.
 /// </summary>
-public class UserService : IUserService
+public class UserService : IUserService, IUserLookup
 {
     private readonly LoyaltyDbContext _db;
 
@@ -65,4 +65,8 @@ public class UserService : IUserService
         await _db.SaveChangesAsync(ct);
         return user;
     }
+
+    /// <inheritdoc />
+    public Task<User?> GetAsync(Guid id, CancellationToken ct = default) =>
+        _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, ct);
 }
