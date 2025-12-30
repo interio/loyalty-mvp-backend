@@ -1,4 +1,4 @@
-namespace Loyalty.Api.Modules.Integration.Application.Invoices;
+namespace Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 
 /// <summary>Response after applying invoice points.</summary>
 public record InvoiceUpsertResponse(

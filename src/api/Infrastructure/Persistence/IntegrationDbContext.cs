@@ -1,4 +1,4 @@
-using Loyalty.Api.Modules.Integration.Domain;
+using Loyalty.Api.Modules.RulesEngine.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Nodes;

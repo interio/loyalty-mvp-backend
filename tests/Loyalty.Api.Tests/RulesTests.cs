@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Loyalty.Api.Modules.Integration.Application.Invoices;
-using Loyalty.Api.Modules.Integration.Application.Rules;
+using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
+using Loyalty.Api.Modules.RulesEngine.Application.Rules;
 using Xunit;
 
 namespace Loyalty.Api.Tests;

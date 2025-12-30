@@ -1,4 +1,4 @@
-namespace Loyalty.Api.Modules.Integration.Domain;
+namespace Loyalty.Api.Modules.RulesEngine.Domain;
 
 /// <summary>States for inbound document processing.</summary>
 public static class InboundDocumentStatus

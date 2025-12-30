@@ -1,8 +1,8 @@
-using Loyalty.Api.Modules.Integration.Application;
-using Loyalty.Api.Modules.Integration.Application.Invoices;
+using Loyalty.Api.Modules.RulesEngine.Application;
+using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Loyalty.Api.Modules.Integration.Api;
+namespace Loyalty.Api.Modules.RulesEngine.Api;
 
 /// <summary>
 /// Receives invoices from MuleSoft/ERP, applies points using backend rules, and posts ledger entries idempotently.

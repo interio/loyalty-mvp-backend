@@ -478,177 +478,6 @@
         <member name="P:Loyalty.Api.Modules.Customers.Domain.User.InitiatedTransactions">
             <summary>Ledger entries this user initiated (optional attribution).</summary>
         </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Api.IntegrationInvoicesController">
-            <summary>
-            Receives invoices from MuleSoft/ERP, applies points using backend rules, and posts ledger entries idempotently.
-            </summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Api.IntegrationInvoicesController.#ctor(Loyalty.Api.Modules.Integration.Application.PointsPostingService,Microsoft.Extensions.Hosting.IHostEnvironment)">
-            <summary>Create the invoices controller.</summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Api.IntegrationInvoicesController.Apply(Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest,System.Threading.CancellationToken)">
-            <summary>
-            Applies an invoice (idempotent per tenant+invoiceId): calculates points, posts ledger, returns new balance.
-            </summary>
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest">
-            <summary>
-            Invoice ingestion request from MuleSoft/ERP. Idempotent per tenant + invoiceId.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest.TenantId">
-            <summary>Tenant identifier (explicit mapping from MuleSoft).</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest.InvoiceId">
-            <summary>Invoice id/number from ERP.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest.OccurredAt">
-            <summary>When the invoice occurred (UTC).</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest.CustomerExternalId">
-            <summary>ERP customer id for the outlet.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest.Currency">
-            <summary>Currency code (optional).</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest.ActorEmail">
-            <summary>Optional actor email attribution.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest.ActorExternalId">
-            <summary>Optional actor external id attribution.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest.Lines">
-            <summary>Invoice lines (cannot be empty).</summary>
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceLineRequest">
-            <summary>Invoice line payload.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceLineRequest.Sku">
-            <summary>SKU code.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceLineRequest.Quantity">
-            <summary>Quantity (must be >= 0).</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceLineRequest.NetAmount">
-            <summary>Net amount for the line (must be >= 0).</summary>
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertResponse">
-            <summary>Response after applying invoice points.</summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertResponse.#ctor(System.String,System.Int32,System.Boolean,System.Int64)">
-            <summary>Response after applying invoice points.</summary>
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Application.PointsPostingService">
-            <summary>
-            Applies invoices: calculates points using rules, posts ledger entry, and enforces idempotency per invoice.
-            </summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.PointsPostingService.#ctor(Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext,Loyalty.Api.Infrastructure.Persistence.IntegrationDbContext,Loyalty.Api.Modules.Integration.Application.Rules.IInvoicePointsRuleProvider)">
-            <summary>Creates the service.</summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.PointsPostingService.ApplyInvoiceAsync(Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest,System.Threading.CancellationToken)">
-            <summary>
-            Applies an invoice idempotently: calculates points, posts ledger, updates balance.
-            Returns the correlation id (invoiceId), points awarded, duplicate flag, and new balance.
-            </summary>
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Application.Rules.HardcodedRulesProvider">
-            <summary>
-            Temporary hardcoded rules. Replace with DB-configured rules managed by Admin UI in the future.
-            </summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.Rules.HardcodedRulesProvider.#ctor">
-            <summary>Create the provider with static rules.</summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.Rules.HardcodedRulesProvider.GetRules">
-            <inheritdoc />
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Application.Rules.IInvoicePointsRuleProvider">
-            <summary>Contract for rule providers (future DB-backed implementation).</summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.Rules.IInvoicePointsRuleProvider.GetRules">
-            <summary>Return the set of rules to evaluate for an invoice.</summary>
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Application.Rules.IInvoicePointsRule">
-            <summary>Rule that computes points from an invoice.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Rules.IInvoicePointsRule.Name">
-            <summary>Rule name for diagnostics.</summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.Rules.IInvoicePointsRule.CalculatePoints(Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest)">
-            <summary>Compute points for the invoice (>=0).</summary>
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Application.Rules.SkuQuantityRule">
-            <summary>SKU quantity rule: buy X quantity of a SKU, get Y points.</summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.Rules.SkuQuantityRule.#ctor(System.String,System.Decimal,System.Int32)">
-            <summary>Create a SKU quantity rule.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Rules.SkuQuantityRule.Name">
-            <inheritdoc />
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.Rules.SkuQuantityRule.CalculatePoints(Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest)">
-            <inheritdoc />
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Application.Rules.SpendRule">
-            <summary>Spend X get Y points rule.</summary>
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.Rules.SpendRule.#ctor(System.Decimal,System.Int32)">
-            <summary>Create a spend-based rule.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Application.Rules.SpendRule.Name">
-            <inheritdoc />
-        </member>
-        <member name="M:Loyalty.Api.Modules.Integration.Application.Rules.SpendRule.CalculatePoints(Loyalty.Api.Modules.Integration.Application.Invoices.InvoiceUpsertRequest)">
-            <inheritdoc />
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Domain.InboundDocument">
-            <summary>
-            Raw inbound document from MuleSoft/ERP. Stored as JSONB with minimal metadata for idempotency.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.Id">
-            <summary>Primary identifier.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.TenantId">
-            <summary>Tenant the document belongs to.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.ExternalId">
-            <summary>External document id from ERP/MuleSoft.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.DocumentType">
-            <summary>Document type (e.g., invoice).</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.Payload">
-            <summary>Raw payload stored as JSON.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.PayloadHash">
-            <summary>Optional content hash for dedupe.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.Status">
-            <summary>Processing status.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.Error">
-            <summary>Error message if processing failed.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.ReceivedAt">
-            <summary>When the document was received.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Modules.Integration.Domain.InboundDocument.ProcessedAt">
-            <summary>When processing completed.</summary>
-        </member>
-        <member name="T:Loyalty.Api.Modules.Integration.Domain.InboundDocumentStatus">
-            <summary>States for inbound document processing.</summary>
-        </member>
-        <member name="F:Loyalty.Api.Modules.Integration.Domain.InboundDocumentStatus.Received">
-            <summary>Document was accepted and stored.</summary>
-        </member>
-        <member name="F:Loyalty.Api.Modules.Integration.Domain.InboundDocumentStatus.Processed">
-            <summary>Document was processed successfully.</summary>
-        </member>
-        <member name="F:Loyalty.Api.Modules.Integration.Domain.InboundDocumentStatus.Failed">
-            <summary>Processing failed.</summary>
-        </member>
         <member name="T:Loyalty.Api.Modules.LoyaltyLedger.Application.RedeemPointsCommand">
             <summary>Command for redeeming points on a customer account.</summary>
         </member>
@@ -767,6 +596,177 @@
         </member>
         <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.CreatedAt">
             <summary>Creation timestamp in UTC.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Api.IntegrationInvoicesController">
+            <summary>
+            Receives invoices from MuleSoft/ERP, applies points using backend rules, and posts ledger entries idempotently.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Api.IntegrationInvoicesController.#ctor(Loyalty.Api.Modules.RulesEngine.Application.PointsPostingService,Microsoft.Extensions.Hosting.IHostEnvironment)">
+            <summary>Create the invoices controller.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Api.IntegrationInvoicesController.Apply(Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest,System.Threading.CancellationToken)">
+            <summary>
+            Applies an invoice (idempotent per tenant+invoiceId): calculates points, posts ledger, returns new balance.
+            </summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest">
+            <summary>
+            Invoice ingestion request from MuleSoft/ERP. Idempotent per tenant + invoiceId.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest.TenantId">
+            <summary>Tenant identifier (explicit mapping from MuleSoft).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest.InvoiceId">
+            <summary>Invoice id/number from ERP.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest.OccurredAt">
+            <summary>When the invoice occurred (UTC).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest.CustomerExternalId">
+            <summary>ERP customer id for the outlet.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest.Currency">
+            <summary>Currency code (optional).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest.ActorEmail">
+            <summary>Optional actor email attribution.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest.ActorExternalId">
+            <summary>Optional actor external id attribution.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest.Lines">
+            <summary>Invoice lines (cannot be empty).</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceLineRequest">
+            <summary>Invoice line payload.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceLineRequest.Sku">
+            <summary>SKU code.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceLineRequest.Quantity">
+            <summary>Quantity (must be >= 0).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceLineRequest.NetAmount">
+            <summary>Net amount for the line (must be >= 0).</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertResponse">
+            <summary>Response after applying invoice points.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertResponse.#ctor(System.String,System.Int32,System.Boolean,System.Int64)">
+            <summary>Response after applying invoice points.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Application.PointsPostingService">
+            <summary>
+            Applies invoices: calculates points using rules, posts ledger entry, and enforces idempotency per invoice.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.PointsPostingService.#ctor(Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext,Loyalty.Api.Infrastructure.Persistence.IntegrationDbContext,Loyalty.Api.Modules.RulesEngine.Application.Rules.IInvoicePointsRuleProvider)">
+            <summary>Creates the service.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.PointsPostingService.ApplyInvoiceAsync(Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest,System.Threading.CancellationToken)">
+            <summary>
+            Applies an invoice idempotently: calculates points, posts ledger, updates balance.
+            Returns the correlation id (invoiceId), points awarded, duplicate flag, and new balance.
+            </summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Application.Rules.HardcodedRulesProvider">
+            <summary>
+            Temporary hardcoded rules. Replace with DB-configured rules managed by Admin UI in the future.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.Rules.HardcodedRulesProvider.#ctor">
+            <summary>Create the provider with static rules.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.Rules.HardcodedRulesProvider.GetRules">
+            <inheritdoc />
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Application.Rules.IInvoicePointsRuleProvider">
+            <summary>Contract for rule providers (future DB-backed implementation).</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.Rules.IInvoicePointsRuleProvider.GetRules">
+            <summary>Return the set of rules to evaluate for an invoice.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Application.Rules.IInvoicePointsRule">
+            <summary>Rule that computes points from an invoice.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Rules.IInvoicePointsRule.Name">
+            <summary>Rule name for diagnostics.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.Rules.IInvoicePointsRule.CalculatePoints(Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest)">
+            <summary>Compute points for the invoice (>=0).</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Application.Rules.SkuQuantityRule">
+            <summary>SKU quantity rule: buy X quantity of a SKU, get Y points.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.Rules.SkuQuantityRule.#ctor(System.String,System.Decimal,System.Int32)">
+            <summary>Create a SKU quantity rule.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Rules.SkuQuantityRule.Name">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.Rules.SkuQuantityRule.CalculatePoints(Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest)">
+            <inheritdoc />
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Application.Rules.SpendRule">
+            <summary>Spend X get Y points rule.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.Rules.SpendRule.#ctor(System.Decimal,System.Int32)">
+            <summary>Create a spend-based rule.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Application.Rules.SpendRule.Name">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Modules.RulesEngine.Application.Rules.SpendRule.CalculatePoints(Loyalty.Api.Modules.RulesEngine.Application.Invoices.InvoiceUpsertRequest)">
+            <inheritdoc />
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument">
+            <summary>
+            Raw inbound document from MuleSoft/ERP. Stored as JSONB with minimal metadata for idempotency.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.Id">
+            <summary>Primary identifier.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.TenantId">
+            <summary>Tenant the document belongs to.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.ExternalId">
+            <summary>External document id from ERP/MuleSoft.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.DocumentType">
+            <summary>Document type (e.g., invoice).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.Payload">
+            <summary>Raw payload stored as JSON.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.PayloadHash">
+            <summary>Optional content hash for dedupe.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.Status">
+            <summary>Processing status.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.Error">
+            <summary>Error message if processing failed.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.ReceivedAt">
+            <summary>When the document was received.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocument.ProcessedAt">
+            <summary>When processing completed.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocumentStatus">
+            <summary>States for inbound document processing.</summary>
+        </member>
+        <member name="F:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocumentStatus.Received">
+            <summary>Document was accepted and stored.</summary>
+        </member>
+        <member name="F:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocumentStatus.Processed">
+            <summary>Document was processed successfully.</summary>
+        </member>
+        <member name="F:Loyalty.Api.Modules.RulesEngine.Domain.InboundDocumentStatus.Failed">
+            <summary>Processing failed.</summary>
         </member>
         <member name="T:Loyalty.Api.Modules.Tenants.Application.ITenantService">
             <summary>Tenant module application contract.</summary>

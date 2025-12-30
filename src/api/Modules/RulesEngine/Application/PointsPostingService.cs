@@ -2,13 +2,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Loyalty.Api.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Application;
-using Loyalty.Api.Modules.Integration.Application.Invoices;
-using Loyalty.Api.Modules.Integration.Application.Rules;
-using Loyalty.Api.Modules.Integration.Domain;
+using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
+using Loyalty.Api.Modules.RulesEngine.Application.Rules;
+using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace Loyalty.Api.Modules.Integration.Application;
+namespace Loyalty.Api.Modules.RulesEngine.Application;
 
 /// <summary>
 /// Applies invoices: calculates points using rules, posts ledger entry, and enforces idempotency per invoice.
@@ -91,6 +91,7 @@ public class PointsPostingService
         _loyaltyDb.PointsTransactions.Add(new Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction
         {
             CustomerId = customer.Id,
+            ActorUserId = await ResolveActorUserId(request, customer.Id, ct),
             Amount = points,
             Reason = PointsReasons.InvoiceEarn,
             CorrelationId = correlationId,
@@ -129,5 +130,27 @@ public class PointsPostingService
             total += rule.CalculatePoints(request);
         }
         return total;
+    }
+
+    private async Task<Guid?> ResolveActorUserId(InvoiceUpsertRequest request, Guid customerId, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(request.ActorExternalId))
+        {
+            var user = await _loyaltyDb.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.CustomerId == customerId && u.ExternalId == request.ActorExternalId, ct);
+            if (user != null) return user.Id;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ActorEmail))
+        {
+            var email = request.ActorEmail.Trim().ToLowerInvariant();
+            var user = await _loyaltyDb.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.CustomerId == customerId && u.Email == email, ct);
+            if (user != null) return user.Id;
+        }
+
+        return null;
     }
 }

@@ -2,8 +2,8 @@ using Loyalty.Api.GraphQL;
 using Loyalty.Api.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Application;
 using Loyalty.Api.Modules.LoyaltyLedger.Application;
-using Loyalty.Api.Modules.Integration.Application;
-using Loyalty.Api.Modules.Integration.Application.Rules;
+using Loyalty.Api.Modules.RulesEngine.Application;
+using Loyalty.Api.Modules.RulesEngine.Application.Rules;
 using Loyalty.Api.Modules.Tenants.Application;
 using Microsoft.EntityFrameworkCore;
 

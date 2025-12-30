@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Loyalty.Api.Modules.Integration.Application.Invoices;
+namespace Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 
 /// <summary>
 /// Invoice ingestion request from MuleSoft/ERP. Idempotent per tenant + invoiceId.

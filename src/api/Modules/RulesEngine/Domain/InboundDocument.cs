@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Loyalty.Api.Modules.Integration.Domain;
+namespace Loyalty.Api.Modules.RulesEngine.Domain;
 
 /// <summary>
 /// Raw inbound document from MuleSoft/ERP. Stored as JSONB with minimal metadata for idempotency.

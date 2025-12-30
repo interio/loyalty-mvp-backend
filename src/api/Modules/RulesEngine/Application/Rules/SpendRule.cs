@@ -1,6 +1,6 @@
-using Loyalty.Api.Modules.Integration.Application.Invoices;
+using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 
-namespace Loyalty.Api.Modules.Integration.Application.Rules;
+namespace Loyalty.Api.Modules.RulesEngine.Application.Rules;
 
 /// <summary>Spend X get Y points rule.</summary>
 public class SpendRule : IInvoicePointsRule
