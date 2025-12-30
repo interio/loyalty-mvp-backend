@@ -1,6 +1,9 @@
-using Loyalty.Api.Data;
-using Microsoft.EntityFrameworkCore;
 using Loyalty.Api.GraphQL;
+using Loyalty.Api.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Customers.Application;
+using Loyalty.Api.Modules.LoyaltyLedger.Application;
+using Loyalty.Api.Modules.Tenants.Application;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +22,10 @@ if (string.IsNullOrWhiteSpace(cs))
 }
 
 builder.Services.AddDbContext<LoyaltyDbContext>(opt => opt.UseNpgsql(cs));
+builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ILedgerService, LedgerService>();
 
 var app = builder.Build();
 

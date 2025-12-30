@@ -1,4 +1,6 @@
-namespace Loyalty.Api.Domain;
+using Loyalty.Api.Modules.Customers.Domain;
+
+namespace Loyalty.Api.Modules.LoyaltyLedger.Domain;
 
 /// <summary>
 /// Append-only ledger entry representing a points movement for a Customer.
@@ -11,6 +13,8 @@ public class PointsTransaction
 
     /// <summary>The Customer/outlet whose balance is affected.</summary>
     public Guid CustomerId { get; set; }
+
+    /// <summary>Customer navigation.</summary>
     public Customer Customer { get; set; } = default!;
 
     /// <summary>
@@ -18,6 +22,8 @@ public class PointsTransaction
     /// ERP-driven points may not always provide user identity, so this can be null.
     /// </summary>
     public Guid? ActorUserId { get; set; }
+
+    /// <summary>Optional actor navigation.</summary>
     public User? ActorUser { get; set; }
 
     /// <summary>
@@ -35,5 +41,6 @@ public class PointsTransaction
     /// </summary>
     public string? CorrelationId { get; set; }
 
+    /// <summary>Creation timestamp in UTC.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

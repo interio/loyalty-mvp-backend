@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-namespace Loyalty.Api.Data;
+namespace Loyalty.Api.Infrastructure.Persistence;
 
 /// <summary>
 /// Provides EF Core with a reliable way to construct the DbContext at design-time
@@ -9,6 +9,9 @@ namespace Loyalty.Api.Data;
 /// </summary>
 public sealed class LoyaltyDbContextFactory : IDesignTimeDbContextFactory<LoyaltyDbContext>
 {
+    /// <summary>
+    /// Creates a design-time DbContext for migrations and tooling.
+    /// </summary>
     public LoyaltyDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<LoyaltyDbContext>();

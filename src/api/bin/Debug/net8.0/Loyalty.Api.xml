@@ -4,136 +4,6 @@
         <name>Loyalty.Api</name>
     </assembly>
     <members>
-        <member name="T:Loyalty.Api.Data.LoyaltyDbContext">
-            <summary>
-            EF Core context for the Loyalty MVP.
-            </summary>
-        </member>
-        <member name="T:Loyalty.Api.Data.LoyaltyDbContextFactory">
-            <summary>
-            Provides EF Core with a reliable way to construct the DbContext at design-time
-            (migrations, database update) without depending on the web host startup.
-            </summary>
-        </member>
-        <member name="T:Loyalty.Api.Domain.Customer">
-            <summary>
-            A business customer/outlet (bar/restaurant/shop) participating in the loyalty program.
-            Points balance and ledger are maintained at this level.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Customer.Id">
-            <summary>Primary identifier.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Customer.TenantId">
-            <summary>Tenant that owns this customer record.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Customer.Name">
-            <summary>Display name (e.g. "Blue Fox Bar").</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Customer.ContactEmail">
-            <summary>
-            Customer-level point of contact email (not necessarily a login).
-            Useful for operational communication and data matching.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Customer.ExternalId">
-            <summary>
-            External identifier from upstream systems (ERP/CRM/customer master).
-            Strongly recommended for matching inbound ERP documents.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Customer.CreatedAt">
-            <summary>Creation timestamp in UTC.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Customer.Users">
-            <summary>Users (employees) that can act on behalf of this Customer.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Customer.PointsAccount">
-            <summary>Cached balance (fast reads). Source of truth remains the ledger.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Customer.Transactions">
-            <summary>Immutable ledger of points movements for this Customer.</summary>
-        </member>
-        <member name="T:Loyalty.Api.Domain.PointsAccount">
-            <summary>
-            Cached balance for fast reads. The immutable ledger is PointsTransaction.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.PointsAccount.CustomerId">
-            <summary>Customer that owns this points account (one-to-one).</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.PointsAccount.Balance">
-            <summary>
-            Cached balance (derived from ledger in principle).
-            </summary>
-        </member>
-        <member name="T:Loyalty.Api.Domain.PointsTransaction">
-            <summary>
-            Append-only ledger entry representing a points movement for a Customer.
-            This table must be immutable: do NOT update/delete rows. Use compensating transactions instead.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.PointsTransaction.Id">
-            <summary>Unique identifier of the ledger entry.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.PointsTransaction.CustomerId">
-            <summary>The Customer/outlet whose balance is affected.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.PointsTransaction.ActorUserId">
-            <summary>
-            Optional actor user who initiated the action (UI redemption, manual adjustment, etc.).
-            ERP-driven points may not always provide user identity, so this can be null.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.PointsTransaction.Amount">
-            <summary>
-            Signed delta. Positive = earn/credit. Negative = redeem/debit.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.PointsTransaction.Reason">
-            <summary>
-            Human-readable reason (e.g. "invoice_points", "reward_redeem", "manual_adjustment").
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.PointsTransaction.CorrelationId">
-            <summary>
-            Optional idempotency/correlation key (e.g. ERP invoice id, redemption id, message id).
-            </summary>
-        </member>
-        <member name="T:Loyalty.Api.Domain.Tenant">
-            <summary>
-            Tenant boundary. Even if MVP runs single-tenant, this keeps the model future-proof and safer.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Tenant.Customers">
-            <summary>Customers/outlets belonging to this tenant.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.Tenant.Users">
-            <summary>All users under this tenant (convenience navigation).</summary>
-        </member>
-        <member name="T:Loyalty.Api.Domain.User">
-            <summary>
-            A human user/employee who can place orders and redeem rewards on behalf of a Customer.
-            </summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.User.TenantId">
-            <summary>Tenant boundary (prevents cross-tenant mixing).</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.User.CustomerId">
-            <summary>The Customer/outlet this user belongs to.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.User.Email">
-            <summary>User email (typically used as login identifier).</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.User.ExternalId">
-            <summary>Optional upstream identifier (ERP/IdP/HR).</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.User.Role">
-            <summary>Optional role (e.g., "Owner", "Employee", "Admin"). MVP can keep as free text.</summary>
-        </member>
-        <member name="P:Loyalty.Api.Domain.User.InitiatedTransactions">
-            <summary>Ledger entries this user initiated (optional attribution).</summary>
-        </member>
         <member name="T:Loyalty.Api.GraphQL.CreateTenantInput">
             <summary>
             Input for creating a tenant (client/organization).
@@ -251,22 +121,22 @@
             GraphQL mutations for frontend/admin operations (NOT ERP ingestion).
             </summary>
         </member>
-        <member name="M:Loyalty.Api.GraphQL.Mutation.CreateTenant(Loyalty.Api.GraphQL.CreateTenantInput,Loyalty.Api.Data.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.GraphQL.Mutation.CreateTenant(Loyalty.Api.GraphQL.CreateTenantInput,Loyalty.Api.Modules.Tenants.Application.ITenantService)">
             <summary>
             Creates a tenant record.
             </summary>
         </member>
-        <member name="M:Loyalty.Api.GraphQL.Mutation.CreateCustomer(Loyalty.Api.GraphQL.CreateCustomerInput,Loyalty.Api.Data.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.GraphQL.Mutation.CreateCustomer(Loyalty.Api.GraphQL.CreateCustomerInput,Loyalty.Api.Modules.Customers.Application.ICustomerService)">
             <summary>
             Creates a customer/outlet and its points account (balance=0).
             </summary>
         </member>
-        <member name="M:Loyalty.Api.GraphQL.Mutation.CreateUser(Loyalty.Api.GraphQL.CreateUserInput,Loyalty.Api.Data.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.GraphQL.Mutation.CreateUser(Loyalty.Api.GraphQL.CreateUserInput,Loyalty.Api.Modules.Customers.Application.IUserService)">
             <summary>
             Creates a user/employee under a customer/outlet.
             </summary>
         </member>
-        <member name="M:Loyalty.Api.GraphQL.Mutation.RedeemPoints(Loyalty.Api.GraphQL.RedeemPointsInput,Loyalty.Api.Data.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.GraphQL.Mutation.RedeemPoints(Loyalty.Api.GraphQL.RedeemPointsInput,Loyalty.Api.Modules.LoyaltyLedger.Application.ILedgerService)">
             <summary>
             Redeems points for a customer/outlet. Creates an immutable ledger entry and updates cached balance.
             </summary>
@@ -280,30 +150,67 @@
             GraphQL read operations for the frontend/admin UI.
             </summary>
         </member>
-        <member name="M:Loyalty.Api.GraphQL.Query.Customer(System.Guid,Loyalty.Api.Data.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.GraphQL.Query.Customer(System.Guid,Loyalty.Api.Modules.Customers.Application.ICustomerService)">
             <summary>
             Returns a single customer/outlet with its cached points account balance.
             </summary>
         </member>
-        <member name="M:Loyalty.Api.GraphQL.Query.CustomersByTenant(System.Guid,Loyalty.Api.Data.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.GraphQL.Query.CustomersByTenant(System.Guid,Loyalty.Api.Modules.Customers.Application.ICustomerService)">
             <summary>
             Lists customers for a given tenant.
             Useful for admin UI screens.
             </summary>
         </member>
-        <member name="M:Loyalty.Api.GraphQL.Query.UsersByCustomer(System.Guid,Loyalty.Api.Data.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.GraphQL.Query.UsersByCustomer(System.Guid,Loyalty.Api.Modules.Customers.Application.IUserService)">
             <summary>
             Lists users (employees) for a customer/outlet.
             </summary>
         </member>
-        <member name="M:Loyalty.Api.GraphQL.Query.CustomerTransactions(System.Guid,Loyalty.Api.Data.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.GraphQL.Query.CustomerTransactions(System.Guid,Loyalty.Api.Modules.LoyaltyLedger.Application.ILedgerService)">
             <summary>
             Returns last N ledger entries for a customer/outlet (immutable points history).
             </summary>
         </member>
-        <member name="M:Loyalty.Api.GraphQL.Query.Tenants(Loyalty.Api.Data.LoyaltyDbContext)">
+        <member name="M:Loyalty.Api.GraphQL.Query.Tenants(Loyalty.Api.Modules.Tenants.Application.ITenantService)">
             <summary>
             Lists tenants (admin convenience; can be removed once auth/tenant scoping is implemented).
+            </summary>
+        </member>
+        <member name="T:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext">
+            <summary>
+            EF Core context for the Loyalty MVP.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext.#ctor(Microsoft.EntityFrameworkCore.DbContextOptions{Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext})">
+            <summary>Configured EF Core context for the modular monolith.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext.Tenants">
+            <summary>Tenant module aggregate root set.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext.Customers">
+            <summary>Customer module aggregate root set.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext.Users">
+            <summary>Customer module users/employees set.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext.PointsAccounts">
+            <summary>Ledger module cached balances.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext.PointsTransactions">
+            <summary>Ledger module immutable transactions.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext.OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <summary>Configure entity mappings and module boundaries.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContextFactory">
+            <summary>
+            Provides EF Core with a reliable way to construct the DbContext at design-time
+            (migrations, database update) without depending on the web host startup.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContextFactory.CreateDbContext(System.String[])">
+            <summary>
+            Creates a design-time DbContext for migrations and tooling.
             </summary>
         </member>
         <member name="T:Loyalty.Api.Migrations.Initial">
@@ -329,6 +236,289 @@
         </member>
         <member name="M:Loyalty.Api.Migrations.AddPointsTransactionImmutability.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
+        </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Application.CreateCustomerCommand">
+            <summary>Command for creating a customer/outlet.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.CreateCustomerCommand.#ctor(System.Guid,System.String,System.String,System.String)">
+            <summary>Command for creating a customer/outlet.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Application.ICustomerService">
+            <summary>Customer module application contract.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.ICustomerService.GetAsync(System.Guid,System.Threading.CancellationToken)">
+            <summary>Fetch a single customer with cached balance.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.ICustomerService.ListByTenantAsync(System.Guid,System.Int32,System.Threading.CancellationToken)">
+            <summary>List customers for a tenant.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.ICustomerService.CreateAsync(Loyalty.Api.Modules.Customers.Application.CreateCustomerCommand,System.Threading.CancellationToken)">
+            <summary>Create a customer and seed its points account.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Application.CustomerService">
+            <summary>
+            Customer module application service (profile + cached balance wiring).
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.CustomerService.#ctor(Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext)">
+            <summary>Constructs the service with the shared DbContext.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.CustomerService.GetAsync(System.Guid,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.CustomerService.ListByTenantAsync(System.Guid,System.Int32,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.CustomerService.CreateAsync(Loyalty.Api.Modules.Customers.Application.CreateCustomerCommand,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Application.CreateUserCommand">
+            <summary>Command for creating a user under a customer.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.CreateUserCommand.#ctor(System.Guid,System.Guid,System.String,System.String,System.String)">
+            <summary>Command for creating a user under a customer.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Application.IUserService">
+            <summary>User application contract within the Customers module.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.IUserService.ListByCustomerAsync(System.Guid,System.Int32,System.Threading.CancellationToken)">
+            <summary>List users belonging to a customer.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.IUserService.CreateAsync(Loyalty.Api.Modules.Customers.Application.CreateUserCommand,System.Threading.CancellationToken)">
+            <summary>Create a user under a customer/tenant.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Application.UserService">
+            <summary>
+            Users application service (employees/actors) inside the Customers module.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.UserService.#ctor(Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext)">
+            <summary>Constructs the user service.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.UserService.ListByCustomerAsync(System.Guid,System.Int32,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Modules.Customers.Application.UserService.CreateAsync(Loyalty.Api.Modules.Customers.Application.CreateUserCommand,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Domain.Customer">
+            <summary>
+            A business customer/outlet (bar/restaurant/shop) participating in the loyalty program.
+            Points balance and ledger are maintained at this level.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.Id">
+            <summary>Primary identifier.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.TenantId">
+            <summary>Tenant that owns this customer record.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.Tenant">
+            <summary>Owning tenant navigation.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.Name">
+            <summary>Display name (e.g. "Blue Fox Bar").</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.ContactEmail">
+            <summary>
+            Customer-level point of contact email (not necessarily a login).
+            Useful for operational communication and data matching.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.ExternalId">
+            <summary>
+            External identifier from upstream systems (ERP/CRM/customer master).
+            Strongly recommended for matching inbound ERP documents.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.CreatedAt">
+            <summary>Creation timestamp in UTC.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.Users">
+            <summary>Users (employees) that can act on behalf of this Customer.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.PointsAccount">
+            <summary>Cached balance (fast reads). Source of truth remains the ledger.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.Customer.Transactions">
+            <summary>Immutable ledger of points movements for this Customer.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.Customers.Domain.User">
+            <summary>
+            A human user/employee who can place orders and redeem rewards on behalf of a Customer.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.Id">
+            <summary>Primary identifier.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.TenantId">
+            <summary>Tenant boundary (prevents cross-tenant mixing).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.Tenant">
+            <summary>Owning tenant navigation.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.CustomerId">
+            <summary>The Customer/outlet this user belongs to.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.Customer">
+            <summary>Customer navigation.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.Email">
+            <summary>User email (typically used as login identifier).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.ExternalId">
+            <summary>Optional upstream identifier (ERP/IdP/HR).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.Role">
+            <summary>Optional role (e.g., "Owner", "Employee", "Admin"). MVP can keep as free text.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.CreatedAt">
+            <summary>Creation timestamp in UTC.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Customers.Domain.User.InitiatedTransactions">
+            <summary>Ledger entries this user initiated (optional attribution).</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.LoyaltyLedger.Application.RedeemPointsCommand">
+            <summary>Command for redeeming points on a customer account.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.LoyaltyLedger.Application.RedeemPointsCommand.#ctor(System.Guid,System.Guid,System.Int32,System.String,System.String)">
+            <summary>Command for redeeming points on a customer account.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.LoyaltyLedger.Application.ILedgerService">
+            <summary>Ledger application contract.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.LoyaltyLedger.Application.ILedgerService.GetTransactionsForCustomerAsync(System.Guid,System.Int32,System.Threading.CancellationToken)">
+            <summary>Fetch recent transactions for a customer.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.LoyaltyLedger.Application.ILedgerService.RedeemAsync(Loyalty.Api.Modules.LoyaltyLedger.Application.RedeemPointsCommand,System.Threading.CancellationToken)">
+            <summary>Redeem points and update cached balance.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.LoyaltyLedger.Application.LedgerService">
+            <summary>
+            Ledger module application service (immutable transactions + cached balance).
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.LoyaltyLedger.Application.LedgerService.#ctor(Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext)">
+            <summary>Constructs the ledger service.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.LoyaltyLedger.Application.LedgerService.GetTransactionsForCustomerAsync(System.Guid,System.Int32,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Modules.LoyaltyLedger.Application.LedgerService.RedeemAsync(Loyalty.Api.Modules.LoyaltyLedger.Application.RedeemPointsCommand,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsAccount">
+            <summary>
+            Cached balance for fast reads. The immutable ledger is PointsTransaction.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsAccount.Id">
+            <summary>Primary identifier.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsAccount.CustomerId">
+            <summary>Customer that owns this points account (one-to-one).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsAccount.Customer">
+            <summary>Customer navigation.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsAccount.Balance">
+            <summary>
+            Cached balance (derived from ledger in principle).
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsAccount.UpdatedAt">
+            <summary>When the cached balance was last updated.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction">
+            <summary>
+            Append-only ledger entry representing a points movement for a Customer.
+            This table must be immutable: do NOT update/delete rows. Use compensating transactions instead.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.Id">
+            <summary>Unique identifier of the ledger entry.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.CustomerId">
+            <summary>The Customer/outlet whose balance is affected.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.Customer">
+            <summary>Customer navigation.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.ActorUserId">
+            <summary>
+            Optional actor user who initiated the action (UI redemption, manual adjustment, etc.).
+            ERP-driven points may not always provide user identity, so this can be null.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.ActorUser">
+            <summary>Optional actor navigation.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.Amount">
+            <summary>
+            Signed delta. Positive = earn/credit. Negative = redeem/debit.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.Reason">
+            <summary>
+            Human-readable reason (e.g. "invoice_points", "reward_redeem", "manual_adjustment").
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.CorrelationId">
+            <summary>
+            Optional idempotency/correlation key (e.g. ERP invoice id, redemption id, message id).
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction.CreatedAt">
+            <summary>Creation timestamp in UTC.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.Tenants.Application.ITenantService">
+            <summary>Tenant module application contract.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Tenants.Application.ITenantService.CreateAsync(System.String,System.Threading.CancellationToken)">
+            <summary>Create a tenant.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Tenants.Application.ITenantService.ExistsAsync(System.Guid,System.Threading.CancellationToken)">
+            <summary>Check if a tenant exists.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Tenants.Application.ITenantService.ListAsync(System.Int32,System.Threading.CancellationToken)">
+            <summary>List tenants for administration.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Modules.Tenants.Application.TenantService">
+            <summary>
+            Tenant module application service. Keeps creation and queries in one place for easy extraction later.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Tenants.Application.TenantService.#ctor(Loyalty.Api.Infrastructure.Persistence.LoyaltyDbContext)">
+            <summary>Constructs the tenant service.</summary>
+        </member>
+        <member name="M:Loyalty.Api.Modules.Tenants.Application.TenantService.CreateAsync(System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Modules.Tenants.Application.TenantService.ExistsAsync(System.Guid,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Modules.Tenants.Application.TenantService.ListAsync(System.Int32,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:Loyalty.Api.Modules.Tenants.Domain.Tenant">
+            <summary>
+            Tenant boundary. Even if MVP runs single-tenant, this keeps the model future-proof and safer.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Tenants.Domain.Tenant.Id">
+            <summary>Primary identifier.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Tenants.Domain.Tenant.Name">
+            <summary>Tenant display name.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Tenants.Domain.Tenant.CreatedAt">
+            <summary>Creation timestamp in UTC.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Tenants.Domain.Tenant.Customers">
+            <summary>Customers/outlets belonging to this tenant.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Modules.Tenants.Domain.Tenant.Users">
+            <summary>All users under this tenant (convenience navigation).</summary>
         </member>
     </members>
 </doc>

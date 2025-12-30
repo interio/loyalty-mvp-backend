@@ -1,21 +1,34 @@
-using Loyalty.Api.Domain;
+using Loyalty.Api.Modules.Customers.Domain;
+using Loyalty.Api.Modules.LoyaltyLedger.Domain;
+using Loyalty.Api.Modules.Tenants.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace Loyalty.Api.Data;
+namespace Loyalty.Api.Infrastructure.Persistence;
 
 /// <summary>
 /// EF Core context for the Loyalty MVP.
 /// </summary>
 public class LoyaltyDbContext : DbContext
 {
+    /// <summary>Configured EF Core context for the modular monolith.</summary>
     public LoyaltyDbContext(DbContextOptions<LoyaltyDbContext> options) : base(options) { }
 
+    /// <summary>Tenant module aggregate root set.</summary>
     public DbSet<Tenant> Tenants => Set<Tenant>();
+
+    /// <summary>Customer module aggregate root set.</summary>
     public DbSet<Customer> Customers => Set<Customer>();
+
+    /// <summary>Customer module users/employees set.</summary>
     public DbSet<User> Users => Set<User>();
+
+    /// <summary>Ledger module cached balances.</summary>
     public DbSet<PointsAccount> PointsAccounts => Set<PointsAccount>();
+
+    /// <summary>Ledger module immutable transactions.</summary>
     public DbSet<PointsTransaction> PointsTransactions => Set<PointsTransaction>();
 
+    /// <summary>Configure entity mappings and module boundaries.</summary>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Tenant>(e =>

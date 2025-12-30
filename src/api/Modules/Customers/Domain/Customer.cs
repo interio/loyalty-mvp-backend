@@ -1,4 +1,7 @@
-namespace Loyalty.Api.Domain;
+using Loyalty.Api.Modules.LoyaltyLedger.Domain;
+using Loyalty.Api.Modules.Tenants.Domain;
+
+namespace Loyalty.Api.Modules.Customers.Domain;
 
 /// <summary>
 /// A business customer/outlet (bar/restaurant/shop) participating in the loyalty program.
@@ -11,6 +14,8 @@ public class Customer
 
     /// <summary>Tenant that owns this customer record.</summary>
     public Guid TenantId { get; set; }
+
+    /// <summary>Owning tenant navigation.</summary>
     public Tenant Tenant { get; set; } = default!;
 
     /// <summary>Display name (e.g. "Blue Fox Bar").</summary>
