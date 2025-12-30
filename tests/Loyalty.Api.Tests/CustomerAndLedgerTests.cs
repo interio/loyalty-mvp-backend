@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Loyalty.Api.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Application;
 using Loyalty.Api.Modules.LoyaltyLedger.Application;
+using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Loyalty.Api.Modules.Tenants.Application;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -49,7 +50,7 @@ public class CustomerAndLedgerTests
         var user = await users.CreateAsync(new CreateUserCommand(tenant.Id, customer.Id, "a@test.com", null, null));
 
         var ex = await Assert.ThrowsAsync<Exception>(() =>
-            ledger.RedeemAsync(new RedeemPointsCommand(customer.Id, user.Id, 10, "redeem", null)));
+            ledger.RedeemAsync(new RedeemPointsCommand(customer.Id, user.Id, 10, PointsReasons.RewardRedeem, null)));
 
         Assert.Contains("Insufficient points", ex.Message);
     }

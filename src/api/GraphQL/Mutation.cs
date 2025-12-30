@@ -44,6 +44,15 @@ public record CreateUserInput(Guid TenantId, Guid CustomerId, string Email, stri
 public record RedeemPointsInput(Guid CustomerId, Guid ActorUserId, int Amount, string Reason, string? CorrelationId);
 
 /// <summary>
+/// Input for manually adjusting points (positive or negative).
+/// </summary>
+/// <param name="CustomerId">Customer/outlet whose balance is adjusted.</param>
+/// <param name="ActorUserId">Optional user performing the adjustment.</param>
+/// <param name="Amount">Signed amount (positive to credit, negative to debit). Cannot be 0.</param>
+/// <param name="CorrelationId">Optional idempotency key.</param>
+public record ManualAdjustPointsInput(Guid CustomerId, Guid? ActorUserId, int Amount, string? CorrelationId);
+
+/// <summary>
 /// GraphQL mutations for frontend/admin operations (NOT ERP ingestion).
 /// </summary>
 public class Mutation
@@ -75,6 +84,17 @@ public class Mutation
     /// </remarks>
     public Task<PointsAccount> RedeemPoints(RedeemPointsInput input, [Service] ILedgerService ledger) =>
         SafeExecute(() => ledger.RedeemAsync(new RedeemPointsCommand(input.CustomerId, input.ActorUserId, input.Amount, input.Reason, input.CorrelationId)));
+
+    /// <summary>
+    /// Manually adjusts points (positive or negative) for a customer/outlet.
+    /// </summary>
+    public Task<PointsAccount> ManualAdjustPoints(ManualAdjustPointsInput input, [Service] ILedgerService ledger) =>
+        SafeExecute(() => ledger.AdjustAsync(new ManualAdjustPointsCommand(
+            input.CustomerId,
+            input.ActorUserId,
+            input.Amount,
+            PointsReasons.ManualAdjustment,
+            input.CorrelationId)));
 
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {
