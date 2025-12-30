@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/Loyalty.Api.props" />
+</Project>

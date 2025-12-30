@@ -1,0 +1,334 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Loyalty.Api</name>
+    </assembly>
+    <members>
+        <member name="T:Loyalty.Api.Data.LoyaltyDbContext">
+            <summary>
+            EF Core context for the Loyalty MVP.
+            </summary>
+        </member>
+        <member name="T:Loyalty.Api.Data.LoyaltyDbContextFactory">
+            <summary>
+            Provides EF Core with a reliable way to construct the DbContext at design-time
+            (migrations, database update) without depending on the web host startup.
+            </summary>
+        </member>
+        <member name="T:Loyalty.Api.Domain.Customer">
+            <summary>
+            A business customer/outlet (bar/restaurant/shop) participating in the loyalty program.
+            Points balance and ledger are maintained at this level.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Customer.Id">
+            <summary>Primary identifier.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Customer.TenantId">
+            <summary>Tenant that owns this customer record.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Customer.Name">
+            <summary>Display name (e.g. "Blue Fox Bar").</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Customer.ContactEmail">
+            <summary>
+            Customer-level point of contact email (not necessarily a login).
+            Useful for operational communication and data matching.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Customer.ExternalId">
+            <summary>
+            External identifier from upstream systems (ERP/CRM/customer master).
+            Strongly recommended for matching inbound ERP documents.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Customer.CreatedAt">
+            <summary>Creation timestamp in UTC.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Customer.Users">
+            <summary>Users (employees) that can act on behalf of this Customer.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Customer.PointsAccount">
+            <summary>Cached balance (fast reads). Source of truth remains the ledger.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Customer.Transactions">
+            <summary>Immutable ledger of points movements for this Customer.</summary>
+        </member>
+        <member name="T:Loyalty.Api.Domain.PointsAccount">
+            <summary>
+            Cached balance for fast reads. The immutable ledger is PointsTransaction.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.PointsAccount.CustomerId">
+            <summary>Customer that owns this points account (one-to-one).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.PointsAccount.Balance">
+            <summary>
+            Cached balance (derived from ledger in principle).
+            </summary>
+        </member>
+        <member name="T:Loyalty.Api.Domain.PointsTransaction">
+            <summary>
+            Append-only ledger entry representing a points movement for a Customer.
+            This table must be immutable: do NOT update/delete rows. Use compensating transactions instead.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.PointsTransaction.Id">
+            <summary>Unique identifier of the ledger entry.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.PointsTransaction.CustomerId">
+            <summary>The Customer/outlet whose balance is affected.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.PointsTransaction.ActorUserId">
+            <summary>
+            Optional actor user who initiated the action (UI redemption, manual adjustment, etc.).
+            ERP-driven points may not always provide user identity, so this can be null.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.PointsTransaction.Amount">
+            <summary>
+            Signed delta. Positive = earn/credit. Negative = redeem/debit.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.PointsTransaction.Reason">
+            <summary>
+            Human-readable reason (e.g. "invoice_points", "reward_redeem", "manual_adjustment").
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.PointsTransaction.CorrelationId">
+            <summary>
+            Optional idempotency/correlation key (e.g. ERP invoice id, redemption id, message id).
+            </summary>
+        </member>
+        <member name="T:Loyalty.Api.Domain.Tenant">
+            <summary>
+            Tenant boundary. Even if MVP runs single-tenant, this keeps the model future-proof and safer.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Tenant.Customers">
+            <summary>Customers/outlets belonging to this tenant.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.Tenant.Users">
+            <summary>All users under this tenant (convenience navigation).</summary>
+        </member>
+        <member name="T:Loyalty.Api.Domain.User">
+            <summary>
+            A human user/employee who can place orders and redeem rewards on behalf of a Customer.
+            </summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.User.TenantId">
+            <summary>Tenant boundary (prevents cross-tenant mixing).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.User.CustomerId">
+            <summary>The Customer/outlet this user belongs to.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.User.Email">
+            <summary>User email (typically used as login identifier).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.User.ExternalId">
+            <summary>Optional upstream identifier (ERP/IdP/HR).</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.User.Role">
+            <summary>Optional role (e.g., "Owner", "Employee", "Admin"). MVP can keep as free text.</summary>
+        </member>
+        <member name="P:Loyalty.Api.Domain.User.InitiatedTransactions">
+            <summary>Ledger entries this user initiated (optional attribution).</summary>
+        </member>
+        <member name="T:Loyalty.Api.GraphQL.CreateTenantInput">
+            <summary>
+            Input for creating a tenant (client/organization).
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.CreateTenantInput.#ctor(System.String)">
+            <summary>
+            Input for creating a tenant (client/organization).
+            </summary>
+        </member>
+        <member name="T:Loyalty.Api.GraphQL.CreateCustomerInput">
+            <summary>
+            Input for creating a customer/outlet (bar/restaurant/shop).
+            </summary>
+            <param name="TenantId">Tenant identifier.</param>
+            <param name="Name">Customer name (e.g. "Blue Fox Bar").</param>
+            <param name="ContactEmail">Optional point-of-contact email for the outlet.</param>
+            <param name="ExternalId">Optional ERP/CRM customer ID.</param>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.CreateCustomerInput.#ctor(System.Guid,System.String,System.String,System.String)">
+            <summary>
+            Input for creating a customer/outlet (bar/restaurant/shop).
+            </summary>
+            <param name="TenantId">Tenant identifier.</param>
+            <param name="Name">Customer name (e.g. "Blue Fox Bar").</param>
+            <param name="ContactEmail">Optional point-of-contact email for the outlet.</param>
+            <param name="ExternalId">Optional ERP/CRM customer ID.</param>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.CreateCustomerInput.TenantId">
+            <summary>Tenant identifier.</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.CreateCustomerInput.Name">
+            <summary>Customer name (e.g. "Blue Fox Bar").</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.CreateCustomerInput.ContactEmail">
+            <summary>Optional point-of-contact email for the outlet.</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.CreateCustomerInput.ExternalId">
+            <summary>Optional ERP/CRM customer ID.</summary>
+        </member>
+        <member name="T:Loyalty.Api.GraphQL.CreateUserInput">
+            <summary>
+            Input for creating a user/employee under a customer/outlet.
+            </summary>
+            <param name="TenantId">Tenant identifier.</param>
+            <param name="CustomerId">Customer/outlet identifier.</param>
+            <param name="Email">User email (login identifier).</param>
+            <param name="Role">Optional role string (e.g., Owner/Employee/Admin).</param>
+            <param name="ExternalId">Optional upstream user ID.</param>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.CreateUserInput.#ctor(System.Guid,System.Guid,System.String,System.String,System.String)">
+            <summary>
+            Input for creating a user/employee under a customer/outlet.
+            </summary>
+            <param name="TenantId">Tenant identifier.</param>
+            <param name="CustomerId">Customer/outlet identifier.</param>
+            <param name="Email">User email (login identifier).</param>
+            <param name="Role">Optional role string (e.g., Owner/Employee/Admin).</param>
+            <param name="ExternalId">Optional upstream user ID.</param>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.CreateUserInput.TenantId">
+            <summary>Tenant identifier.</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.CreateUserInput.CustomerId">
+            <summary>Customer/outlet identifier.</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.CreateUserInput.Email">
+            <summary>User email (login identifier).</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.CreateUserInput.Role">
+            <summary>Optional role string (e.g., Owner/Employee/Admin).</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.CreateUserInput.ExternalId">
+            <summary>Optional upstream user ID.</summary>
+        </member>
+        <member name="T:Loyalty.Api.GraphQL.RedeemPointsInput">
+            <summary>
+            Input for redeeming points for a reward/loyalty product.
+            This is a frontend-driven operation (GraphQL).
+            </summary>
+            <param name="CustomerId">Customer/outlet whose balance is debited.</param>
+            <param name="ActorUserId">User who initiated the redemption.</param>
+            <param name="Amount">Positive amount to redeem; stored as negative ledger entry.</param>
+            <param name="Reason">Reason label (e.g. "reward_redeem").</param>
+            <param name="CorrelationId">Optional idempotency key (e.g. redemption order id).</param>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.RedeemPointsInput.#ctor(System.Guid,System.Guid,System.Int32,System.String,System.String)">
+            <summary>
+            Input for redeeming points for a reward/loyalty product.
+            This is a frontend-driven operation (GraphQL).
+            </summary>
+            <param name="CustomerId">Customer/outlet whose balance is debited.</param>
+            <param name="ActorUserId">User who initiated the redemption.</param>
+            <param name="Amount">Positive amount to redeem; stored as negative ledger entry.</param>
+            <param name="Reason">Reason label (e.g. "reward_redeem").</param>
+            <param name="CorrelationId">Optional idempotency key (e.g. redemption order id).</param>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.RedeemPointsInput.CustomerId">
+            <summary>Customer/outlet whose balance is debited.</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.RedeemPointsInput.ActorUserId">
+            <summary>User who initiated the redemption.</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.RedeemPointsInput.Amount">
+            <summary>Positive amount to redeem; stored as negative ledger entry.</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.RedeemPointsInput.Reason">
+            <summary>Reason label (e.g. "reward_redeem").</summary>
+        </member>
+        <member name="P:Loyalty.Api.GraphQL.RedeemPointsInput.CorrelationId">
+            <summary>Optional idempotency key (e.g. redemption order id).</summary>
+        </member>
+        <member name="T:Loyalty.Api.GraphQL.Mutation">
+            <summary>
+            GraphQL mutations for frontend/admin operations (NOT ERP ingestion).
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.Mutation.CreateTenant(Loyalty.Api.GraphQL.CreateTenantInput,Loyalty.Api.Data.LoyaltyDbContext)">
+            <summary>
+            Creates a tenant record.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.Mutation.CreateCustomer(Loyalty.Api.GraphQL.CreateCustomerInput,Loyalty.Api.Data.LoyaltyDbContext)">
+            <summary>
+            Creates a customer/outlet and its points account (balance=0).
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.Mutation.CreateUser(Loyalty.Api.GraphQL.CreateUserInput,Loyalty.Api.Data.LoyaltyDbContext)">
+            <summary>
+            Creates a user/employee under a customer/outlet.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.Mutation.RedeemPoints(Loyalty.Api.GraphQL.RedeemPointsInput,Loyalty.Api.Data.LoyaltyDbContext)">
+            <summary>
+            Redeems points for a customer/outlet. Creates an immutable ledger entry and updates cached balance.
+            </summary>
+            <remarks>
+            Ledger immutability is enforced in DB via trigger (UPDATE/DELETE blocked).
+            Corrections must be compensating inserts.
+            </remarks>
+        </member>
+        <member name="T:Loyalty.Api.GraphQL.Query">
+            <summary>
+            GraphQL read operations for the frontend/admin UI.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.Query.Customer(System.Guid,Loyalty.Api.Data.LoyaltyDbContext)">
+            <summary>
+            Returns a single customer/outlet with its cached points account balance.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.Query.CustomersByTenant(System.Guid,Loyalty.Api.Data.LoyaltyDbContext)">
+            <summary>
+            Lists customers for a given tenant.
+            Useful for admin UI screens.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.Query.UsersByCustomer(System.Guid,Loyalty.Api.Data.LoyaltyDbContext)">
+            <summary>
+            Lists users (employees) for a customer/outlet.
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.Query.CustomerTransactions(System.Guid,Loyalty.Api.Data.LoyaltyDbContext)">
+            <summary>
+            Returns last N ledger entries for a customer/outlet (immutable points history).
+            </summary>
+        </member>
+        <member name="M:Loyalty.Api.GraphQL.Query.Tenants(Loyalty.Api.Data.LoyaltyDbContext)">
+            <summary>
+            Lists tenants (admin convenience; can be removed once auth/tenant scoping is implemented).
+            </summary>
+        </member>
+        <member name="T:Loyalty.Api.Migrations.Initial">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Migrations.Initial.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Migrations.Initial.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Migrations.Initial.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:Loyalty.Api.Migrations.AddPointsTransactionImmutability">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Migrations.AddPointsTransactionImmutability.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Migrations.AddPointsTransactionImmutability.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Migrations.AddPointsTransactionImmutability.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+    </members>
+</doc>

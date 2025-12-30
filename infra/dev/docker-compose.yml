@@ -1,0 +1,28 @@
+services:
+  api:
+    image: mcr.microsoft.com/devcontainers/dotnet:1-8.0
+    volumes:
+      - ../../:/workspaces/loyalty-mvp:cached
+    working_dir: /workspaces/loyalty-mvp
+    command: sleep infinity
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=loyalty;Username=loyalty;Password=loyalty
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: loyalty
+      POSTGRES_PASSWORD: loyalty
+      POSTGRES_DB: loyalty
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
