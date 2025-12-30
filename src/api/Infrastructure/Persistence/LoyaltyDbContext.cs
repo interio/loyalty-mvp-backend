@@ -79,8 +79,8 @@ public class LoyaltyDbContext : DbContext
             // Login identity uniqueness per tenant.
             e.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
 
-            // Optional uniqueness for upstream IDs per tenant (if provided).
-            e.HasIndex(x => new { x.TenantId, x.ExternalId }).IsUnique();
+            // ERP links are at the customer level; allow reuse across users in a tenant.
+            e.HasIndex(x => new { x.TenantId, x.CustomerId, x.ExternalId });
         });
 
         modelBuilder.Entity<PointsAccount>(e =>

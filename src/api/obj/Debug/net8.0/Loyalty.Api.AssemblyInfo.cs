@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Loyalty.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5e35551aae621ab086dd50e9bbca4e8e22251c4d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+280e9883c9177e9f11c6a1e7f8b19d2829293b52")]
 [assembly: System.Reflection.AssemblyProductAttribute("Loyalty.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Loyalty.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -237,6 +237,18 @@
         <member name="M:Loyalty.Api.Migrations.AddPointsTransactionImmutability.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
+        <member name="T:Loyalty.Api.Migrations.AllowUserExternalIdPerCustomer">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Migrations.AllowUserExternalIdPerCustomer.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Migrations.AllowUserExternalIdPerCustomer.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:Loyalty.Api.Migrations.AllowUserExternalIdPerCustomer.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
         <member name="T:Loyalty.Api.Modules.Customers.Application.ICustomerLookup">
             <summary>Read-only contract for customer lookups (cross-module safe).</summary>
         </member>
