@@ -1,4 +1,3 @@
-using Loyalty.Api.GraphQL;
 using Loyalty.Api.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Application;
 using Loyalty.Api.Modules.LoyaltyLedger.Application;
@@ -12,8 +11,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
   .AddGraphQLServer()
   .ModifyRequestOptions(o => o.IncludeExceptionDetails = builder.Environment.IsDevelopment())
-  .AddQueryType<Query>()
-  .AddMutationType<Mutation>();
+  .AddQueryType(d => d.Name("Query"))
+  .AddMutationType(d => d.Name("Mutation"))
+  .AddTypeExtension<Loyalty.Api.Modules.Customers.GraphQL.CustomerQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.Customers.GraphQL.CustomerMutations>()
+  .AddTypeExtension<Loyalty.Api.Modules.Tenants.GraphQL.TenantQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.Tenants.GraphQL.TenantMutations>()
+  .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerMutations>();
 builder.Services.AddControllers();
 
 var cs = builder.Configuration.GetConnectionString("Default");
