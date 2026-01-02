@@ -1,9 +1,12 @@
-using Loyalty.Api.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Application;
+using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Application;
+using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
+using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Tenants.Application;
+using Loyalty.Api.Modules.Tenants.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,7 +32,9 @@ if (string.IsNullOrWhiteSpace(cs))
         "Set ConnectionStrings__Default env var (Dev Container) or appsettings.Development.json.");
 }
 
-builder.Services.AddDbContext<LoyaltyDbContext>(opt => opt.UseNpgsql(cs));
+builder.Services.AddDbContext<TenantsDbContext>(opt => opt.UseNpgsql(cs));
+builder.Services.AddDbContext<CustomersDbContext>(opt => opt.UseNpgsql(cs));
+builder.Services.AddDbContext<LedgerDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddDbContext<IntegrationDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();

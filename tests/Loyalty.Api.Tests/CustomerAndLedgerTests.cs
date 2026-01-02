@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using Loyalty.Api.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Loyalty.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Application;
 using Loyalty.Api.Modules.LoyaltyLedger.Application;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;

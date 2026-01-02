@@ -1,10 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Loyalty.Api.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Application;
+using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
+using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
 using Loyalty.Api.Modules.RulesEngine.Domain;
+using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,14 +18,16 @@ namespace Loyalty.Api.Modules.RulesEngine.Application;
 public class PointsPostingService
 {
     private const string DocumentTypeInvoice = "invoice";
-    private readonly LoyaltyDbContext _loyaltyDb;
+    private readonly LedgerDbContext _ledgerDb;
+    private readonly CustomersDbContext _customersDb;
     private readonly IntegrationDbContext _integrationDb;
     private readonly IInvoicePointsRuleProvider _rules;
 
     /// <summary>Creates the service.</summary>
-    public PointsPostingService(LoyaltyDbContext loyaltyDb, IntegrationDbContext integrationDb, IInvoicePointsRuleProvider rules)
+    public PointsPostingService(LedgerDbContext ledgerDb, CustomersDbContext customersDb, IntegrationDbContext integrationDb, IInvoicePointsRuleProvider rules)
     {
-        _loyaltyDb = loyaltyDb;
+        _ledgerDb = ledgerDb;
+        _customersDb = customersDb;
         _integrationDb = integrationDb;
         _rules = rules;
     }
@@ -39,12 +43,12 @@ public class PointsPostingService
         var correlationId = request.InvoiceId;
 
         // Idempotency: check if this invoice already exists in ledger.
-        var existingTx = await _loyaltyDb.PointsTransactions
+        var existingTx = await _ledgerDb.PointsTransactions
             .FirstOrDefaultAsync(t => t.CorrelationId == correlationId && t.Reason == PointsReasons.InvoiceEarn, ct);
 
         if (existingTx is not null)
         {
-            var existingAccount = await _loyaltyDb.PointsAccounts.FirstOrDefaultAsync(a => a.CustomerId == existingTx.CustomerId, ct);
+            var existingAccount = await _ledgerDb.PointsAccounts.FirstOrDefaultAsync(a => a.CustomerId == existingTx.CustomerId, ct);
             return new InvoiceUpsertResponse(correlationId, 0, true, existingAccount?.Balance ?? 0);
         }
 
@@ -69,13 +73,13 @@ public class PointsPostingService
         }
 
         // Resolve customer by external id.
-        var customer = await _loyaltyDb.Customers.FirstOrDefaultAsync(c =>
+        var customer = await _customersDb.Customers.FirstOrDefaultAsync(c =>
             c.TenantId == request.TenantId && c.ExternalId == request.CustomerExternalId, ct);
 
         if (customer is null)
             throw new System.Collections.Generic.KeyNotFoundException("Customer not found for provided tenant and external id.");
 
-        var account = await _loyaltyDb.PointsAccounts.FirstOrDefaultAsync(a => a.CustomerId == customer.Id, ct)
+        var account = await _ledgerDb.PointsAccounts.FirstOrDefaultAsync(a => a.CustomerId == customer.Id, ct)
                       ?? throw new Exception("Customer has no points account.");
 
         var points = CalculatePoints(request);
@@ -88,7 +92,7 @@ public class PointsPostingService
         account.Balance += points;
         account.UpdatedAt = DateTimeOffset.UtcNow;
 
-        _loyaltyDb.PointsTransactions.Add(new Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction
+        _ledgerDb.PointsTransactions.Add(new PointsTransaction
         {
             CustomerId = customer.Id,
             ActorUserId = await ResolveActorUserId(request, customer.Id, ct),
@@ -98,7 +102,7 @@ public class PointsPostingService
             CreatedAt = request.OccurredAt
         });
 
-        await _loyaltyDb.SaveChangesAsync(ct);
+        await _ledgerDb.SaveChangesAsync(ct);
 
         return new InvoiceUpsertResponse(correlationId, points, false, account.Balance);
     }
@@ -136,7 +140,7 @@ public class PointsPostingService
     {
         if (!string.IsNullOrWhiteSpace(request.ActorExternalId))
         {
-            var user = await _loyaltyDb.Users
+            var user = await _customersDb.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.CustomerId == customerId && u.ExternalId == request.ActorExternalId, ct);
             if (user != null) return user.Id;
@@ -145,7 +149,7 @@ public class PointsPostingService
         if (!string.IsNullOrWhiteSpace(request.ActorEmail))
         {
             var email = request.ActorEmail.Trim().ToLowerInvariant();
-            var user = await _loyaltyDb.Users
+            var user = await _customersDb.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.CustomerId == customerId && u.Email == email, ct);
             if (user != null) return user.Id;

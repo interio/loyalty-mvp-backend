@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Loyalty.Api.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Loyalty.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
+using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -14,31 +15,35 @@ namespace Loyalty.Api.Tests;
 
 public class PointsPostingServiceTests
 {
-    private (LoyaltyDbContext loyalty, IntegrationDbContext integration) CreateContexts(string dbName)
+    private (LedgerDbContext ledger, CustomersDbContext customers, IntegrationDbContext integration) CreateContexts(string dbName)
     {
-        var loyaltyOptions = new DbContextOptionsBuilder<LoyaltyDbContext>()
+        var ledgerOptions = new DbContextOptionsBuilder<LedgerDbContext>()
+            .UseInMemoryDatabase(dbName)
+            .Options;
+        var customersOptions = new DbContextOptionsBuilder<CustomersDbContext>()
             .UseInMemoryDatabase(dbName)
             .Options;
         var integrationOptions = new DbContextOptionsBuilder<IntegrationDbContext>()
             .UseInMemoryDatabase(dbName)
             .Options;
 
-        return (new LoyaltyDbContext(loyaltyOptions), new IntegrationDbContext(integrationOptions));
+        return (new LedgerDbContext(ledgerOptions), new CustomersDbContext(customersOptions), new IntegrationDbContext(integrationOptions));
     }
 
     [Fact]
     public async Task ApplyInvoice_IsIdempotent()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (loyalty, integration) = CreateContexts(dbName);
+        var (ledger, customers, integration) = CreateContexts(dbName);
 
         var tenantId = Guid.NewGuid();
         var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
-        loyalty.Customers.Add(customer);
-        loyalty.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
-        await loyalty.SaveChangesAsync();
+        customers.Customers.Add(customer);
+        await customers.SaveChangesAsync();
+        ledger.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
+        await ledger.SaveChangesAsync();
 
-        var service = new PointsPostingService(loyalty, integration, new HardcodedRulesProvider());
+        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
 
         var request = new InvoiceUpsertRequest
         {

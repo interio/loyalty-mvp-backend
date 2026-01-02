@@ -1,4 +1,4 @@
-using Loyalty.Api.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Tenants.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Tenants.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,10 +22,10 @@ public interface ITenantService
 /// </summary>
 public class TenantService : ITenantService
 {
-    private readonly LoyaltyDbContext _db;
+    private readonly TenantsDbContext _db;
 
     /// <summary>Constructs the tenant service.</summary>
-    public TenantService(LoyaltyDbContext db) => _db = db;
+    public TenantService(TenantsDbContext db) => _db = db;
 
     /// <inheritdoc />
     public async Task<Tenant> CreateAsync(string name, CancellationToken ct = default)

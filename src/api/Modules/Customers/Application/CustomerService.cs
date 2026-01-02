@@ -1,4 +1,5 @@
-using Loyalty.Api.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
+using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -26,10 +27,15 @@ public interface ICustomerService
 /// </summary>
 public class CustomerService : ICustomerService, ICustomerLookup
 {
-    private readonly LoyaltyDbContext _db;
+    private readonly CustomersDbContext _db;
+    private readonly LedgerDbContext _ledgerDb;
 
-    /// <summary>Constructs the service with the shared DbContext.</summary>
-    public CustomerService(LoyaltyDbContext db) => _db = db;
+    /// <summary>Constructs the service with module DbContexts.</summary>
+    public CustomerService(CustomersDbContext db, LedgerDbContext ledgerDb)
+    {
+        _db = db;
+        _ledgerDb = ledgerDb;
+    }
 
     /// <inheritdoc />
     public Task<Customer?> GetAsync(Guid id, CancellationToken ct = default) =>
@@ -71,14 +77,14 @@ public class CustomerService : ICustomerService, ICustomerLookup
         _db.Customers.Add(customer);
 
         // Create cached balance record immediately.
-        _db.PointsAccounts.Add(new PointsAccount
+        _ledgerDb.PointsAccounts.Add(new PointsAccount
         {
             CustomerId = customer.Id,
             Balance = 0,
             UpdatedAt = DateTimeOffset.UtcNow
         });
-
         await _db.SaveChangesAsync(ct);
+        await _ledgerDb.SaveChangesAsync(ct);
         return customer;
     }
 

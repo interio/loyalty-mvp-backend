@@ -1,4 +1,4 @@
-using Loyalty.Api.Infrastructure.Persistence;
+using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Application;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -29,11 +29,11 @@ public interface ILedgerService
 /// </summary>
 public class LedgerService : ILedgerService
 {
-    private readonly LoyaltyDbContext _db;
+    private readonly LedgerDbContext _db;
     private readonly IUserLookup _users;
 
     /// <summary>Constructs the ledger service.</summary>
-    public LedgerService(LoyaltyDbContext db, IUserLookup users)
+    public LedgerService(LedgerDbContext db, IUserLookup users)
     {
         _db = db;
         _users = users;

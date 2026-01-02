@@ -1,4 +1,4 @@
-using Loyalty.Api.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,10 +22,10 @@ public interface IUserService
 /// </summary>
 public class UserService : IUserService, IUserLookup
 {
-    private readonly LoyaltyDbContext _db;
+    private readonly CustomersDbContext _db;
 
     /// <summary>Constructs the user service.</summary>
-    public UserService(LoyaltyDbContext db) => _db = db;
+    public UserService(CustomersDbContext db) => _db = db;
 
     /// <inheritdoc />
     public Task<List<User>> ListByCustomerAsync(Guid customerId, int take = 500, CancellationToken ct = default) =>

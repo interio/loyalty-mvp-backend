@@ -1,14 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-namespace Loyalty.Api.Infrastructure.Persistence;
+namespace Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 
-/// <summary>
-/// Design-time factory for IntegrationDbContext (migrations).
-/// </summary>
+/// <summary>Design-time factory for IntegrationDbContext.</summary>
 public sealed class IntegrationDbContextFactory : IDesignTimeDbContextFactory<IntegrationDbContext>
 {
-    /// <summary>Create a design-time IntegrationDbContext for migrations.</summary>
     public IntegrationDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<IntegrationDbContext>();

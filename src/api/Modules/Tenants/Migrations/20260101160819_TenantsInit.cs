@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Loyalty.Api.Migrations
+namespace Loyalty.Api.Modules.Tenants.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class TenantsInit : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -25,21 +25,21 @@ namespace Loyalty.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Customers",
+                name: "Customer",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     TenantId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
-                    ContactEmail = table.Column<string>(type: "character varying(320)", maxLength: 320, nullable: true),
-                    ExternalId = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    ContactEmail = table.Column<string>(type: "text", nullable: true),
+                    ExternalId = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Customers", x => x.Id);
+                    table.PrimaryKey("PK_Customer", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Customers_Tenants_TenantId",
+                        name: "FK_Customer_Tenants_TenantId",
                         column: x => x.TenantId,
                         principalTable: "Tenants",
                         principalColumn: "Id",
@@ -47,7 +47,7 @@ namespace Loyalty.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "PointsAccounts",
+                name: "PointsAccount",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -57,38 +57,38 @@ namespace Loyalty.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PointsAccounts", x => x.Id);
+                    table.PrimaryKey("PK_PointsAccount", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_PointsAccounts_Customers_CustomerId",
+                        name: "FK_PointsAccount_Customer_CustomerId",
                         column: x => x.CustomerId,
-                        principalTable: "Customers",
+                        principalTable: "Customer",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Users",
+                name: "User",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     TenantId = table.Column<Guid>(type: "uuid", nullable: false),
                     CustomerId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Email = table.Column<string>(type: "character varying(320)", maxLength: 320, nullable: false),
-                    ExternalId = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    Role = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    Email = table.Column<string>(type: "text", nullable: false),
+                    ExternalId = table.Column<string>(type: "text", nullable: true),
+                    Role = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Users", x => x.Id);
+                    table.PrimaryKey("PK_User", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Users_Customers_CustomerId",
+                        name: "FK_User_Customer_CustomerId",
                         column: x => x.CustomerId,
-                        principalTable: "Customers",
+                        principalTable: "Customer",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Users_Tenants_TenantId",
+                        name: "FK_User_Tenants_TenantId",
                         column: x => x.TenantId,
                         principalTable: "Tenants",
                         principalColumn: "Id",
@@ -96,99 +96,79 @@ namespace Loyalty.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "PointsTransactions",
+                name: "PointsTransaction",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     CustomerId = table.Column<Guid>(type: "uuid", nullable: false),
                     ActorUserId = table.Column<Guid>(type: "uuid", nullable: true),
                     Amount = table.Column<int>(type: "integer", nullable: false),
-                    Reason = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    CorrelationId = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    Reason = table.Column<string>(type: "text", nullable: false),
+                    CorrelationId = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PointsTransactions", x => x.Id);
+                    table.PrimaryKey("PK_PointsTransaction", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_PointsTransactions_Customers_CustomerId",
+                        name: "FK_PointsTransaction_Customer_CustomerId",
                         column: x => x.CustomerId,
-                        principalTable: "Customers",
+                        principalTable: "Customer",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_PointsTransactions_Users_ActorUserId",
+                        name: "FK_PointsTransaction_User_ActorUserId",
                         column: x => x.ActorUserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalTable: "User",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Customers_TenantId_ExternalId",
-                table: "Customers",
-                columns: new[] { "TenantId", "ExternalId" },
-                unique: true);
+                name: "IX_Customer_TenantId",
+                table: "Customer",
+                column: "TenantId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PointsAccounts_CustomerId",
-                table: "PointsAccounts",
+                name: "IX_PointsAccount_CustomerId",
+                table: "PointsAccount",
                 column: "CustomerId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_PointsTransactions_ActorUserId",
-                table: "PointsTransactions",
+                name: "IX_PointsTransaction_ActorUserId",
+                table: "PointsTransaction",
                 column: "ActorUserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PointsTransactions_CorrelationId",
-                table: "PointsTransactions",
-                column: "CorrelationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PointsTransactions_CustomerId",
-                table: "PointsTransactions",
+                name: "IX_PointsTransaction_CustomerId",
+                table: "PointsTransaction",
                 column: "CustomerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PointsTransactions_CustomerId_CorrelationId",
-                table: "PointsTransactions",
-                columns: new[] { "CustomerId", "CorrelationId" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_CustomerId",
-                table: "Users",
+                name: "IX_User_CustomerId",
+                table: "User",
                 column: "CustomerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Users_TenantId_Email",
-                table: "Users",
-                columns: new[] { "TenantId", "Email" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_TenantId_ExternalId",
-                table: "Users",
-                columns: new[] { "TenantId", "ExternalId" },
-                unique: true);
+                name: "IX_User_TenantId",
+                table: "User",
+                column: "TenantId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "PointsAccounts");
+                name: "PointsAccount");
 
             migrationBuilder.DropTable(
-                name: "PointsTransactions");
+                name: "PointsTransaction");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "User");
 
             migrationBuilder.DropTable(
-                name: "Customers");
+                name: "Customer");
 
             migrationBuilder.DropTable(
                 name: "Tenants");

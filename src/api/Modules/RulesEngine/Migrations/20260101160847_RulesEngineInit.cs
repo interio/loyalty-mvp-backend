@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Loyalty.Api.Migrations.IntegrationDb
+namespace Loyalty.Api.Modules.RulesEngine.Migrations
 {
     /// <inheritdoc />
-    public partial class InitIntegration : Migration
+    public partial class RulesEngineInit : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -20,7 +19,7 @@ namespace Loyalty.Api.Migrations.IntegrationDb
                     TenantId = table.Column<Guid>(type: "uuid", nullable: false),
                     ExternalId = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     DocumentType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Payload = table.Column<JsonObject>(type: "jsonb", nullable: false),
+                    Payload = table.Column<string>(type: "jsonb", nullable: false),
                     PayloadHash = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                     Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Error = table.Column<string>(type: "text", nullable: true),
