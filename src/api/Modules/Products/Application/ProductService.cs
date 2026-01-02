@@ -27,19 +27,24 @@ public class ProductService
     {
         Validate(req);
 
-        var product = await _db.Products
-            .FirstOrDefaultAsync(p =>
-                p.DistributorId == req.DistributorId &&
-                p.Sku == req.Sku &&
-                p.Gtin == req.Gtin, ct);
+        var trimmedSku = req.Sku.Trim();
+        var trimmedGtin = string.IsNullOrWhiteSpace(req.Gtin) ? null : req.Gtin.Trim();
+
+        var query = _db.Products
+            .Where(p => p.DistributorId == req.DistributorId && p.Sku == trimmedSku);
+
+        if (!string.IsNullOrWhiteSpace(trimmedGtin))
+            query = query.Where(p => p.Gtin == trimmedGtin);
+
+        var product = await query.FirstOrDefaultAsync(ct);
 
         if (product is null)
         {
             product = new Product
             {
                 DistributorId = req.DistributorId,
-                Sku = req.Sku.Trim(),
-                Gtin = string.IsNullOrWhiteSpace(req.Gtin) ? null : req.Gtin.Trim(),
+                Sku = trimmedSku,
+                Gtin = trimmedGtin,
                 Name = req.Name.Trim(),
                 Cost = req.Cost,
                 Attributes = ToJson(req.Attributes),
@@ -52,6 +57,7 @@ public class ProductService
         {
             product.Name = req.Name.Trim();
             product.Cost = req.Cost;
+            product.Gtin = trimmedGtin;
             product.Attributes = ToJson(req.Attributes);
             product.UpdatedAt = DateTimeOffset.UtcNow;
         }

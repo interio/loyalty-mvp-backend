@@ -52,6 +52,21 @@ public class UserService : IUserService, IUserLookup
         var role = command.Role?.Trim();
         var externalId = command.ExternalId?.Trim();
 
+        var emailExists = await _db.Users.AnyAsync(u => u.TenantId == command.TenantId && u.Email == email, ct);
+        if (emailExists)
+            throw new Exception("Email already exists within the tenant.");
+
+        if (!string.IsNullOrWhiteSpace(externalId))
+        {
+            var externalExists = await _db.Users.AnyAsync(u =>
+                u.TenantId == command.TenantId &&
+                u.CustomerId == command.CustomerId &&
+                u.ExternalId == externalId, ct);
+
+            if (externalExists)
+                throw new Exception("ExternalId already exists for this customer.");
+        }
+
         var user = new User
         {
             TenantId = command.TenantId,

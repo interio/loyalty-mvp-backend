@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// TODO: Add authentication/authorization to protect REST and GraphQL endpoints.
 builder.Services
   .AddGraphQLServer()
   .ModifyRequestOptions(o => o.IncludeExceptionDetails = builder.Environment.IsDevelopment())

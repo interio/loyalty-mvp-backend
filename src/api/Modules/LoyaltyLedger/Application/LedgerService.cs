@@ -112,8 +112,15 @@ public class LedgerService : ILedgerService
         account.Balance = newBalance;
         account.UpdatedAt = DateTimeOffset.UtcNow;
 
-        await _db.SaveChangesAsync(ct);
-        return account;
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+            return account;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new Exception("Concurrent update detected. Retry the operation.");
+        }
     }
 
     /// <inheritdoc />
@@ -167,7 +174,14 @@ public class LedgerService : ILedgerService
             CorrelationId = corr
         });
 
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new Exception("Concurrent update detected. Retry the operation.");
+        }
         return account;
     }
 }

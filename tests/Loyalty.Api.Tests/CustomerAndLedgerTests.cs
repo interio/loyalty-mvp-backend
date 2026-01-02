@@ -72,4 +72,27 @@ public class CustomerAndLedgerTests
 
         Assert.Contains("Insufficient points", ex.Message);
     }
+
+    [Fact]
+    public async Task CreateUser_FailsWhenExternalIdDuplicatesWithinCustomer()
+    {
+        var (tenantsDb, customersDb, ledgerDb) = CreateContexts();
+        using var td = tenantsDb;
+        using var cd = customersDb;
+        using var ld = ledgerDb;
+
+        var tenants = new TenantService(td);
+        var customers = new CustomerService(cd, ld);
+        var users = new UserService(cd);
+
+        var tenant = await tenants.CreateAsync("Test Tenant");
+        var customer = await customers.CreateAsync(new CreateCustomerCommand(tenant.Id, "Outlet", null, null));
+
+        await users.CreateAsync(new CreateUserCommand(tenant.Id, customer.Id, "a@test.com", null, "EXT-1"));
+
+        var ex = await Assert.ThrowsAsync<Exception>(() =>
+            users.CreateAsync(new CreateUserCommand(tenant.Id, customer.Id, "b@test.com", null, "EXT-1")));
+
+        Assert.Contains("ExternalId already exists", ex.Message);
+    }
 }

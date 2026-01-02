@@ -56,7 +56,9 @@ public class CustomersDbContext : DbContext
                 .HasForeignKey(x => x.CustomerId);
 
             e.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
-            e.HasIndex(x => new { x.TenantId, x.CustomerId, x.ExternalId });
+            e.HasIndex(x => new { x.TenantId, x.CustomerId, x.ExternalId })
+                .IsUnique()
+                .HasFilter("\"ExternalId\" IS NOT NULL");
             e.ToTable("Users");
         });
 

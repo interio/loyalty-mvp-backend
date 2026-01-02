@@ -76,7 +76,9 @@ namespace Loyalty.Api.Modules.Customers.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Users_TenantId_CustomerId_ExternalId",
                 table: "Users",
-                columns: new[] { "TenantId", "CustomerId", "ExternalId" });
+                columns: new[] { "TenantId", "CustomerId", "ExternalId" },
+                unique: true,
+                filter: "\"ExternalId\" IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_TenantId_Email",

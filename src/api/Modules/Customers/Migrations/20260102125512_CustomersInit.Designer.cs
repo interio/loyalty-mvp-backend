@@ -93,7 +93,9 @@ namespace Loyalty.Api.Modules.Customers.Migrations
                     b.HasIndex("TenantId", "Email")
                         .IsUnique();
 
-                    b.HasIndex("TenantId", "CustomerId", "ExternalId");
+                    b.HasIndex("TenantId", "CustomerId", "ExternalId")
+                        .IsUnique()
+                        .HasFilter("\"ExternalId\" IS NOT NULL");
 
                     b.ToTable("Users", (string)null);
                 });

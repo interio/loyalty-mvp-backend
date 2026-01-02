@@ -3,6 +3,7 @@ using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Loyalty.Api.Modules.Customers.Application;
 
@@ -25,15 +26,16 @@ public interface ICustomerService
 /// <summary>
 /// Customer module application service (profile + cached balance wiring).
 /// </summary>
-public class CustomerService : ICustomerService, ICustomerLookup
-{
-    private readonly CustomersDbContext _db;
-    private readonly LedgerDbContext _ledgerDb;
-
-    /// <summary>Constructs the service with module DbContexts.</summary>
-    public CustomerService(CustomersDbContext db, LedgerDbContext ledgerDb)
+    public class CustomerService : ICustomerService, ICustomerLookup
     {
-        _db = db;
+        private readonly CustomersDbContext _db;
+        private readonly LedgerDbContext _ledgerDb;
+        private bool ShouldShareTransaction => _db.Database.IsRelational() && _ledgerDb.Database.IsRelational();
+
+        /// <summary>Constructs the service with module DbContexts.</summary>
+        public CustomerService(CustomersDbContext db, LedgerDbContext ledgerDb)
+        {
+            _db = db;
         _ledgerDb = ledgerDb;
     }
 
@@ -64,19 +66,40 @@ public class CustomerService : ICustomerService, ICustomerLookup
             throw new Exception("Customer name is required.");
 
         var contactEmail = command.ContactEmail?.Trim();
-        var externalId = command.ExternalId?.Trim();
+            var externalId = command.ExternalId?.Trim();
 
-        var customer = new Customer
-        {
-            TenantId = command.TenantId,
+            var customer = new Customer
+            {
+                TenantId = command.TenantId,
             Name = name,
             ContactEmail = string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail,
             ExternalId = string.IsNullOrWhiteSpace(externalId) ? null : externalId
         };
 
-        _db.Customers.Add(customer);
+        if (ShouldShareTransaction)
+        {
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await _db.Database.BeginTransactionAsync(ct);
+                await _ledgerDb.Database.UseTransactionAsync(tx.GetDbTransaction(), ct);
 
-        // Create cached balance record immediately.
+                _db.Customers.Add(customer);
+                _ledgerDb.PointsAccounts.Add(new PointsAccount
+                {
+                    CustomerId = customer.Id,
+                    Balance = 0,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                });
+
+                await _db.SaveChangesAsync(ct);
+                await _ledgerDb.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return customer;
+            });
+        }
+
+        _db.Customers.Add(customer);
         _ledgerDb.PointsAccounts.Add(new PointsAccount
         {
             CustomerId = customer.Id,

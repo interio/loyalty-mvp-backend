@@ -17,7 +17,7 @@ public class ProductsDbContext : DbContext
     {
         var comparer = new ValueComparer<JsonObject>(
             (l, r) => JsonNode.DeepEquals(l, r),
-            v => v.GetHashCode(),
+            v => JsonSerializer.Serialize(v, new JsonSerializerOptions()).GetHashCode(),
             v => JsonSerializer.Deserialize<JsonObject>(JsonSerializer.Serialize(v, new JsonSerializerOptions()), new JsonSerializerOptions())!);
 
         modelBuilder.Entity<Product>(e =>
@@ -34,8 +34,15 @@ public class ProductsDbContext : DbContext
                     v => JsonSerializer.Deserialize<JsonObject>(v, new JsonSerializerOptions())!)
                 .Metadata.SetValueComparer(comparer);
 
-            // Uniqueness per distributor + SKU + GTIN.
-            e.HasIndex(x => new { x.DistributorId, x.Sku, x.Gtin }).IsUnique();
+            // Enforce uniqueness:
+            // - Distributor + SKU where GTIN is null (natural key without GTIN).
+            // - Distributor + SKU + GTIN where GTIN is provided.
+            e.HasIndex(x => new { x.DistributorId, x.Sku, x.Gtin })
+                .IsUnique()
+                .HasFilter("\"Gtin\" IS NOT NULL");
+            e.HasIndex(x => new { x.DistributorId, x.Sku })
+                .IsUnique()
+                .HasFilter("\"Gtin\" IS NULL");
             e.ToTable("Products");
         });
     }

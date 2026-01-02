@@ -105,6 +105,11 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                     b.Property<Guid>("CustomerId")
                         .HasColumnType("uuid");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bytea");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -155,24 +160,6 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                         .IsUnique();
 
                     b.ToTable("PointsTransactions", (string)null);
-                });
-
-            modelBuilder.Entity("Loyalty.Api.Modules.Tenants.Domain.Tenant", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Tenant");
                 });
 
             modelBuilder.Entity("Loyalty.Api.Modules.Customers.Domain.Customer", b =>
@@ -248,12 +235,6 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                     b.Navigation("InitiatedTransactions");
                 });
 
-            modelBuilder.Entity("Loyalty.Api.Modules.Tenants.Domain.Tenant", b =>
-                {
-                    b.Navigation("Customers");
-
-                    b.Navigation("Users");
-                });
 #pragma warning restore 612, 618
         }
     }

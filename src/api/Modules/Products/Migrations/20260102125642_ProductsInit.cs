@@ -31,10 +31,18 @@ namespace Loyalty.Api.Modules.Products.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_Products_DistributorId_Sku",
+                table: "Products",
+                columns: new[] { "DistributorId", "Sku" },
+                unique: true,
+                filter: "\"Gtin\" IS NULL");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Products_DistributorId_Sku_Gtin",
                 table: "Products",
                 columns: new[] { "DistributorId", "Sku", "Gtin" },
-                unique: true);
+                unique: true,
+                filter: "\"Gtin\" IS NOT NULL");
         }
 
         /// <inheritdoc />

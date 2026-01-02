@@ -18,7 +18,8 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     CustomerId = table.Column<Guid>(type: "uuid", nullable: false),
                     Balance = table.Column<long>(type: "bigint", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: new byte[0])
                 },
                 constraints: table =>
                 {
@@ -60,19 +61,6 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                         onDelete: ReferentialAction.SetNull);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "Tenant",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Tenant", x => x.Id);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_PointsAccounts_CustomerId",
                 table: "PointsAccounts",
@@ -109,9 +97,6 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
 
             migrationBuilder.DropTable(
                 name: "PointsTransactions");
-
-            migrationBuilder.DropTable(
-                name: "Tenant");
         }
     }
 }

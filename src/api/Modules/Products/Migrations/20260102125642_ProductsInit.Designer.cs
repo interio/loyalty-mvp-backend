@@ -64,8 +64,13 @@ namespace Loyalty.Api.Modules.Products.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DistributorId", "Sku")
+                        .IsUnique()
+                        .HasFilter("\"Gtin\" IS NULL");
+
                     b.HasIndex("DistributorId", "Sku", "Gtin")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"Gtin\" IS NOT NULL");
 
                     b.ToTable("Products", (string)null);
                 });

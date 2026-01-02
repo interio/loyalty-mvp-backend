@@ -65,4 +65,55 @@ public class PointsPostingServiceTests
         Assert.True(second.WasDuplicate);
         Assert.Equal(first.NewBalance, second.NewBalance);
     }
+
+    [Fact]
+    public async Task ApplyInvoice_AllowsSameInvoiceIdAcrossTenants()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var (ledger, customers, integration) = CreateContexts(dbName);
+
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        var customerA = new Customer { TenantId = tenantA, Name = "A", ExternalId = "CUST" };
+        var customerB = new Customer { TenantId = tenantB, Name = "B", ExternalId = "CUST" };
+        customers.Customers.AddRange(customerA, customerB);
+        await customers.SaveChangesAsync();
+
+        ledger.PointsAccounts.AddRange(
+            new PointsAccount { CustomerId = customerA.Id, Balance = 0 },
+            new PointsAccount { CustomerId = customerB.Id, Balance = 0 });
+        await ledger.SaveChangesAsync();
+
+        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+
+        var requestA = new InvoiceUpsertRequest
+        {
+            TenantId = tenantA,
+            InvoiceId = "INV-1",
+            CustomerExternalId = "CUST",
+            OccurredAt = DateTimeOffset.UtcNow,
+            Lines = new List<InvoiceLineRequest>
+            {
+                new() { Sku = "A", Quantity = 1, NetAmount = 200m }
+            }
+        };
+
+        var requestB = new InvoiceUpsertRequest
+        {
+            TenantId = tenantB,
+            InvoiceId = "INV-1",
+            CustomerExternalId = "CUST",
+            OccurredAt = requestA.OccurredAt,
+            Lines = requestA.Lines
+        };
+
+        var resultA = await service.ApplyInvoiceAsync(requestA);
+        var resultB = await service.ApplyInvoiceAsync(requestB);
+
+        Assert.False(resultA.WasDuplicate);
+        Assert.False(resultB.WasDuplicate);
+        Assert.Equal(20, resultA.PointsAwarded); // 200m spend => 20 points
+        Assert.Equal(20, resultB.PointsAwarded);
+    }
 }

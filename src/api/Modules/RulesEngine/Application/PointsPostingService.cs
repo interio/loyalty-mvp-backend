@@ -9,6 +9,7 @@ using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Loyalty.Api.Modules.RulesEngine.Application;
 
@@ -38,13 +39,49 @@ public class PointsPostingService
     /// </summary>
     public async Task<InvoiceUpsertResponse> ApplyInvoiceAsync(InvoiceUpsertRequest request, CancellationToken ct = default)
     {
+        if (ShouldUseSharedTransaction())
+        {
+            var strategy = _ledgerDb.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await _ledgerDb.Database.BeginTransactionAsync(ct);
+                await _customersDb.Database.UseTransactionAsync(tx.GetDbTransaction(), ct);
+                await _integrationDb.Database.UseTransactionAsync(tx.GetDbTransaction(), ct);
+
+                var result = await ApplyInvoiceInternalAsync(request, ct);
+
+                await tx.CommitAsync(ct);
+                return result;
+            });
+        }
+
+        return await ApplyInvoiceInternalAsync(request, ct);
+    }
+
+    private bool ShouldUseSharedTransaction() =>
+        _ledgerDb.Database.IsRelational() &&
+        _customersDb.Database.IsRelational() &&
+        _integrationDb.Database.IsRelational();
+
+    private async Task<InvoiceUpsertResponse> ApplyInvoiceInternalAsync(InvoiceUpsertRequest request, CancellationToken ct)
+    {
         Validate(request);
 
         var correlationId = request.InvoiceId;
 
-        // Idempotency: check if this invoice already exists in ledger.
+        // Resolve customer by tenant + external id first for correct scoping.
+        var customer = await _customersDb.Customers.FirstOrDefaultAsync(c =>
+            c.TenantId == request.TenantId && c.ExternalId == request.CustomerExternalId, ct);
+
+        if (customer is null)
+            throw new System.Collections.Generic.KeyNotFoundException("Customer not found for provided tenant and external id.");
+
+        // Idempotency: check if this invoice already exists in ledger scoped to tenant/customer.
         var existingTx = await _ledgerDb.PointsTransactions
-            .FirstOrDefaultAsync(t => t.CorrelationId == correlationId && t.Reason == PointsReasons.InvoiceEarn, ct);
+            .FirstOrDefaultAsync(t =>
+                t.CustomerId == customer.Id &&
+                t.CorrelationId == correlationId &&
+                t.Reason == PointsReasons.InvoiceEarn, ct);
 
         if (existingTx is not null)
         {
@@ -71,13 +108,6 @@ public class PointsPostingService
             });
             await _integrationDb.SaveChangesAsync(ct);
         }
-
-        // Resolve customer by external id.
-        var customer = await _customersDb.Customers.FirstOrDefaultAsync(c =>
-            c.TenantId == request.TenantId && c.ExternalId == request.CustomerExternalId, ct);
-
-        if (customer is null)
-            throw new System.Collections.Generic.KeyNotFoundException("Customer not found for provided tenant and external id.");
 
         var account = await _ledgerDb.PointsAccounts.FirstOrDefaultAsync(a => a.CustomerId == customer.Id, ct)
                       ?? throw new Exception("Customer has no points account.");

@@ -34,6 +34,7 @@ public class LedgerDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.CustomerId).IsUnique();
+            e.Property(x => x.RowVersion).IsRowVersion();
             e.ToTable("PointsAccounts");
         });
 
