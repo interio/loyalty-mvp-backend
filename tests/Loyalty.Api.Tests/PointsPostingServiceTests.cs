@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Loyalty.Api.Modules.Loyalty.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Domain;
+using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
+using Loyalty.Api.Modules.LoyaltyLedger.Domain;
+using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
-using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
