@@ -1,0 +1,109 @@
+1) Create a tenant
+POST /graphql
+{
+  "query": "mutation ($input: CreateTenantInput!) { createTenant(input: $input) { id name } }",
+  "variables": { "input": { "name": "Tenant Alpha" } }
+}
+Capture tenantId.
+
+2) Create two customers under that tenant
+Customer A:
+POST /graphql
+{
+  "query": "mutation ($input: CreateCustomerInput!) { createCustomer(input: $input) { id name tenantId pointsAccount { balance } } }",
+  "variables": {
+    "input": {
+      "tenantId": "TENANT_ID",
+      "name": "Blue Fox Bar",
+      "contactEmail": "owner@bluefox.example",
+      "externalId": "CUST-BLUE-001"
+    }
+  }
+}
+
+Customer B:
+POST /graphql
+{
+  "query": "mutation ($input: CreateCustomerInput!) { createCustomer(input: $input) { id name tenantId pointsAccount { balance } } }",
+  "variables": {
+    "input": {
+      "tenantId": "TENANT_ID",
+      "name": "Green Garden Cafe",
+      "contactEmail": "owner@greengarden.example",
+      "externalId": "CUST-GREEN-001"
+    }
+  }
+}
+Capture customerId for each.
+
+3) Create two users per customer
+Customer A users:
+POST /graphql
+{
+  "query": "mutation ($input: CreateUserInput!) { createUser(input: $input) { id email customerId tenantId role externalId } }",
+  "variables": { "input": { "tenantId": "TENANT_ID", "customerId": "CUSTOMER_A_ID", "email": "owner@bluefox.example", "role": "Owner", "externalId": "USER-BLUE-OWNER" } }
+}
+
+POST /graphql
+{
+  "query": "mutation ($input: CreateUserInput!) { createUser(input: $input) { id email customerId tenantId role externalId } }",
+  "variables": { "input": { "tenantId": "TENANT_ID", "customerId": "CUSTOMER_A_ID", "email": "admin@bluefox.example", "role": "Administrator", "externalId": "USER-BLUE-ADMIN" } }
+}
+
+Customer B users (similar):
+POST /graphql
+{
+  "query": "mutation ($input: CreateUserInput!) { createUser(input: $input) { id email customerId tenantId role externalId } }",
+  "variables": { "input": { "tenantId": "TENANT_ID", "customerId": "CUSTOMER_B_ID", "email": "owner@greengarden.example", "role": "Owner", "externalId": "USER-GREEN-OWNER" } }
+}
+
+POST /graphql
+{
+  "query": "mutation ($input: CreateUserInput!) { createUser(input: $input) { id email customerId tenantId role externalId } }",
+  "variables": { "input": { "tenantId": "TENANT_ID", "customerId": "CUSTOMER_B_ID", "email": "admin@greengarden.example", "role": "Administrator", "externalId": "USER-GREEN-ADMIN" } }
+}
+Capture user IDs per customer.
+
+4) Transactions (ledger)
+Use RedeemPoints for debits and ManualAdjustPoints for credits/debits. Examples per customer:
+Customer A:
+POST /graphql
+{
+  "query": "mutation ($input: RedeemPointsInput!) { redeemPoints(input: $input) { customerId balance updatedAt } }",
+  "variables": { "input": { "customerId": "CUSTOMER_A_ID", "actorUserId": "USER_A1_ID", "amount": 50, "reason": "reward_redeem", "correlationId": "blue-redeem-1" } }
+}
+
+POST /graphql
+{
+  "query": "mutation ($input: ManualAdjustPointsInput!) { manualAdjustPoints(input: $input) { customerId balance updatedAt } }",
+  "variables": { "input": { "customerId": "CUSTOMER_A_ID", "actorUserId": "USER_A2_ID", "amount": 100, "correlationId": "blue-adjust-1" } }
+}
+
+Customer B:
+POST /graphql
+{
+  "query": "mutation ($input: RedeemPointsInput!) { redeemPoints(input: $input) { customerId balance updatedAt } }",
+  "variables": { "input": { "customerId": "CUSTOMER_B_ID", "actorUserId": "USER_B1_ID", "amount": 30, "reason": "reward_redeem", "correlationId": "green-redeem-1" } }
+}
+
+POST /graphql
+{
+  "query": "mutation ($input: ManualAdjustPointsInput!) { manualAdjustPoints(input: $input) { customerId balance updatedAt } }",
+  "variables": { "input": { "customerId": "CUSTOMER_B_ID", "actorUserId": "USER_B2_ID", "amount": 75, "correlationId": "green-adjust-1" } }
+}
+
+Invoice-based credits (REST)
+POST /api/v1/integration/invoices/apply
+Content-Type: application/json
+{
+  "tenantId": "TENANT_ID",
+  "invoiceId": "INV-2025-0000123",
+  "occurredAt": "2025-12-30T16:45:00Z",
+  "customerExternalId": "CUST-BLUE-001",
+  "actorEmail": "owner@bluefox.example",
+  "currency": "EUR",
+  "lines": [
+    { "sku": "BEER-HEINEKEN-KEG-30L", "quantity": 1, "netAmount": 520.00 },
+    { "sku": "BEER-HEINEKEN-BTL-24PK", "quantity": 4, "netAmount": 360.00 }
+  ]
+}

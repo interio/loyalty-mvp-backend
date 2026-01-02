@@ -52,7 +52,7 @@ namespace Loyalty.Api.Modules.Customers.Migrations
                     b.HasIndex("TenantId", "ExternalId")
                         .IsUnique();
 
-                    b.ToTable("Customers");
+                    b.ToTable("Customers", (string)null);
                 });
 
             modelBuilder.Entity("Loyalty.Api.Modules.Customers.Domain.User", b =>
@@ -92,7 +92,7 @@ namespace Loyalty.Api.Modules.Customers.Migrations
 
                     b.HasIndex("TenantId", "CustomerId", "ExternalId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Loyalty.Api.Modules.Tenants.Domain.Tenant", b =>

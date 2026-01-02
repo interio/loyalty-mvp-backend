@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Loyalty.Api.Modules.RulesEngine.Migrations
 {
     /// <inheritdoc />
-    public partial class RulesEngineInit : Migration
+    public partial class IntegrationInit : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

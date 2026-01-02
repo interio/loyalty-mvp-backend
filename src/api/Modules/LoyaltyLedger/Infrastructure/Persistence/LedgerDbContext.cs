@@ -34,6 +34,7 @@ public class LedgerDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.CustomerId).IsUnique();
+            e.ToTable("PointsAccounts");
         });
 
         modelBuilder.Entity<PointsTransaction>(e =>
@@ -55,6 +56,7 @@ public class LedgerDbContext : DbContext
             e.HasIndex(x => x.CustomerId);
             e.HasIndex(x => x.CorrelationId);
             e.HasIndex(x => new { x.CustomerId, x.CorrelationId }).IsUnique();
+            e.ToTable("PointsTransactions");
         });
     }
 }

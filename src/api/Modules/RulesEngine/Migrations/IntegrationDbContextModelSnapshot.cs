@@ -70,7 +70,7 @@ namespace Loyalty.Api.Modules.RulesEngine.Migrations
                     b.HasIndex("TenantId", "DocumentType", "ExternalId")
                         .IsUnique();
 
-                    b.ToTable("InboundDocuments");
+                    b.ToTable("InboundDocuments", (string)null);
                 });
 #pragma warning restore 612, 618
         }

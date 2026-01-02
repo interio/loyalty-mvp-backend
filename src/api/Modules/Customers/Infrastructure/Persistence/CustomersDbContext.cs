@@ -36,6 +36,7 @@ public class CustomersDbContext : DbContext
                 .HasForeignKey(x => x.TenantId);
 
             e.HasIndex(x => new { x.TenantId, x.ExternalId }).IsUnique();
+            e.ToTable("Customers");
         });
 
         modelBuilder.Entity<User>(e =>
@@ -56,6 +57,7 @@ public class CustomersDbContext : DbContext
 
             e.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.CustomerId, x.ExternalId });
+            e.ToTable("Users");
         });
 
         // Ignore ledger entities in this context.

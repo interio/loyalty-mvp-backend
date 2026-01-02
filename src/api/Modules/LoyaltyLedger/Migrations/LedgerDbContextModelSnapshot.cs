@@ -113,7 +113,7 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                     b.HasIndex("CustomerId")
                         .IsUnique();
 
-                    b.ToTable("PointsAccounts");
+                    b.ToTable("PointsAccounts", (string)null);
                 });
 
             modelBuilder.Entity("Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsTransaction", b =>
@@ -154,7 +154,7 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                     b.HasIndex("CustomerId", "CorrelationId")
                         .IsUnique();
 
-                    b.ToTable("PointsTransactions");
+                    b.ToTable("PointsTransactions", (string)null);
                 });
 
             modelBuilder.Entity("Loyalty.Api.Modules.Tenants.Domain.Tenant", b =>

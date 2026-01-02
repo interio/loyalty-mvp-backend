@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Loyalty.Api.Modules.RulesEngine.Migrations
 {
     [DbContext(typeof(IntegrationDbContext))]
-    [Migration("20260101160847_RulesEngineInit")]
-    partial class RulesEngineInit
+    [Migration("20260102125631_IntegrationInit")]
+    partial class IntegrationInit
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -73,7 +73,7 @@ namespace Loyalty.Api.Modules.RulesEngine.Migrations
                     b.HasIndex("TenantId", "DocumentType", "ExternalId")
                         .IsUnique();
 
-                    b.ToTable("InboundDocuments");
+                    b.ToTable("InboundDocuments", (string)null);
                 });
 #pragma warning restore 612, 618
         }

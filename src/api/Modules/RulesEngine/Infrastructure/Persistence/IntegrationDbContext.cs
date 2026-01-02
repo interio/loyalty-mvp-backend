@@ -30,6 +30,7 @@ public class IntegrationDbContext : DbContext
 
             e.HasIndex(x => new { x.TenantId, x.DocumentType, x.ExternalId }).IsUnique();
             e.HasIndex(x => x.PayloadHash);
+            e.ToTable("InboundDocuments");
         });
     }
 }

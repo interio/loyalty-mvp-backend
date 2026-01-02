@@ -2,6 +2,8 @@ using Loyalty.Api.Modules.Customers.Application;
 using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Application;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Products.Application;
+using Loyalty.Api.Modules.Products.Infrastructure.Persistence;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
@@ -36,6 +38,7 @@ builder.Services.AddDbContext<TenantsDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddDbContext<CustomersDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddDbContext<LedgerDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddDbContext<IntegrationDbContext>(opt => opt.UseNpgsql(cs));
+builder.Services.AddDbContext<ProductsDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ICustomerLookup>(sp => (CustomerService)sp.GetRequiredService<ICustomerService>());
@@ -44,6 +47,7 @@ builder.Services.AddScoped<IUserLookup>(sp => (UserService)sp.GetRequiredService
 builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IInvoicePointsRuleProvider, HardcodedRulesProvider>();
 builder.Services.AddScoped<PointsPostingService>();
+builder.Services.AddScoped<ProductService>();
 
 var app = builder.Build();
 
