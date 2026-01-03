@@ -9,13 +9,10 @@ using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
-using System.Transactions;
 
 namespace Loyalty.Api.Modules.RulesEngine.Application;
 
-/// <summary>
-/// Applies invoices: calculates points using rules, posts ledger entry, and enforces idempotency per invoice.
-/// </summary>
+/// <summary>Handles invoice ingestion and asynchronous points processing.</summary>
 public class PointsPostingService
 {
     private const string DocumentTypeInvoice = "invoice";
@@ -33,33 +30,123 @@ public class PointsPostingService
         _rules = rules;
     }
 
-    /// <summary>
-    /// Applies an invoice idempotently: calculates points, posts ledger, updates balance.
-    /// Returns the correlation id (invoiceId), points awarded, duplicate flag, and new balance.
-    /// </summary>
-    public async Task<InvoiceUpsertResponse> ApplyInvoiceAsync(InvoiceUpsertRequest request, CancellationToken ct = default)
+    /// <summary>Accepts an invoice and stores it for later processing.</summary>
+    public async Task<string> IngestInvoiceAsync(InvoiceUpsertRequest request, CancellationToken ct = default)
     {
-        if (ShouldUseSharedTransaction())
+        Validate(request);
+
+        var correlationId = request.InvoiceId;
+
+        var existing = await _integrationDb.InboundDocuments.FirstOrDefaultAsync(d =>
+            d.TenantId == request.TenantId &&
+            d.DocumentType == DocumentTypeInvoice &&
+            d.ExternalId == request.InvoiceId, ct);
+
+        if (existing is null)
         {
-            var strategy = _ledgerDb.Database.CreateExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
+            var node = JsonSerializer.SerializeToNode(request) ?? new JsonObject();
+            _integrationDb.InboundDocuments.Add(new InboundDocument
             {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-                var result = await ApplyInvoiceInternalAsync(request, ct);
-                scope.Complete();
-                return result;
+                TenantId = request.TenantId,
+                ExternalId = request.InvoiceId,
+                DocumentType = DocumentTypeInvoice,
+                Payload = (JsonObject)node,
+                Status = InboundDocumentStatus.PendingPoints
             });
         }
+        else
+        {
+            // If already stored, ensure it is queued for processing.
+            existing.Status = InboundDocumentStatus.PendingPoints;
+            existing.Error = null;
+            existing.Payload = JsonSerializer.SerializeToNode(request) as JsonObject ?? new JsonObject();
+        }
 
-        return await ApplyInvoiceInternalAsync(request, ct);
+        await _integrationDb.SaveChangesAsync(ct);
+        return correlationId;
     }
 
-    private bool ShouldUseSharedTransaction() =>
-        _ledgerDb.Database.IsRelational() &&
-        _customersDb.Database.IsRelational() &&
-        _integrationDb.Database.IsRelational();
+    /// <summary>Processes up to <paramref name="batchSize"/> pending invoices and awards points.</summary>
+    public async Task ProcessPendingInvoicesAsync(int batchSize = 200, CancellationToken ct = default)
+    {
+        if (batchSize <= 0) return;
 
-    private async Task<InvoiceUpsertResponse> ApplyInvoiceInternalAsync(InvoiceUpsertRequest request, CancellationToken ct)
+        var docs = new List<InboundDocument>();
+        if (_integrationDb.Database.IsRelational())
+        {
+            await using var tx = await _integrationDb.Database.BeginTransactionAsync(ct);
+            docs = await _integrationDb.InboundDocuments
+                .FromSqlInterpolated($@"
+                    SELECT * FROM ""InboundDocuments""
+                    WHERE ""Status"" IN ({InboundDocumentStatus.PendingPoints}, {InboundDocumentStatus.Failed})
+                      AND ""DocumentType"" = {DocumentTypeInvoice}
+                    ORDER BY ""ReceivedAt""
+                    LIMIT {batchSize}
+                    FOR UPDATE SKIP LOCKED")
+                .ToListAsync(ct);
+
+            if (docs.Count > 0)
+            {
+                var ids = docs.Select(d => d.Id).ToList();
+                await _integrationDb.InboundDocuments
+                    .Where(d => ids.Contains(d.Id))
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(d => d.Status, d => InboundDocumentStatus.Processing)
+                        .SetProperty(d => d.AttemptCount, d => d.AttemptCount + 1)
+                        .SetProperty(d => d.LastAttemptAt, _ => DateTimeOffset.UtcNow)
+                        .SetProperty(d => d.Error, _ => null), ct);
+            }
+
+            await tx.CommitAsync(ct);
+        }
+        else
+        {
+            docs = await _integrationDb.InboundDocuments
+                .Where(d => (d.Status == InboundDocumentStatus.PendingPoints || d.Status == InboundDocumentStatus.Failed) &&
+                            d.DocumentType == DocumentTypeInvoice)
+                .OrderBy(d => d.ReceivedAt)
+                .Take(batchSize)
+                .ToListAsync(ct);
+
+            foreach (var d in docs)
+            {
+                d.Status = InboundDocumentStatus.Processing;
+                d.AttemptCount += 1;
+                d.LastAttemptAt = DateTimeOffset.UtcNow;
+                d.Error = null;
+            }
+            await _integrationDb.SaveChangesAsync(ct);
+        }
+
+        if (docs.Count == 0) return;
+
+        foreach (var doc in docs)
+        {
+            try
+            {
+                var request = doc.Payload.Deserialize<InvoiceUpsertRequest>(new JsonSerializerOptions()) ??
+                              throw new Exception("Stored payload could not be deserialized.");
+
+                var result = await AwardInvoiceAsync(request, ct);
+                doc.Status = InboundDocumentStatus.Processed;
+                doc.ProcessedAt = DateTimeOffset.UtcNow;
+                doc.Error = null;
+            }
+            catch (Exception ex)
+            {
+                doc.Status = InboundDocumentStatus.Failed;
+                doc.Error = ex.Message;
+            }
+        }
+
+        await _integrationDb.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Calculates points and posts ledger entry idempotently.
+    /// Returns the correlation id (invoiceId), points awarded, duplicate flag, and new balance.
+    /// </summary>
+    public async Task<InvoiceUpsertResponse> AwardInvoiceAsync(InvoiceUpsertRequest request, CancellationToken ct = default)
     {
         Validate(request);
 
@@ -83,26 +170,6 @@ public class PointsPostingService
         {
             var existingAccount = await _ledgerDb.PointsAccounts.FirstOrDefaultAsync(a => a.CustomerId == existingTx.CustomerId, ct);
             return new InvoiceUpsertResponse(correlationId, 0, true, existingAccount?.Balance ?? 0);
-        }
-
-        // Ensure idempotent document storage.
-        var docExists = await _integrationDb.InboundDocuments.AnyAsync(d =>
-            d.TenantId == request.TenantId &&
-            d.DocumentType == DocumentTypeInvoice &&
-            d.ExternalId == request.InvoiceId, ct);
-
-        if (!docExists)
-        {
-            var node = JsonSerializer.SerializeToNode(request) ?? new JsonObject();
-            _integrationDb.InboundDocuments.Add(new InboundDocument
-            {
-                TenantId = request.TenantId,
-                ExternalId = request.InvoiceId,
-                DocumentType = DocumentTypeInvoice,
-                Payload = (JsonObject)node,
-                Status = InboundDocumentStatus.Received
-            });
-            await _integrationDb.SaveChangesAsync(ct);
         }
 
         var account = await _ledgerDb.PointsAccounts.FirstOrDefaultAsync(a => a.CustomerId == customer.Id, ct)

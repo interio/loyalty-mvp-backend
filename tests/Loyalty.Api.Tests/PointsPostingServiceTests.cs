@@ -32,7 +32,7 @@ public class PointsPostingServiceTests
     }
 
     [Fact]
-    public async Task ApplyInvoice_IsIdempotent()
+    public async Task ProcessPendingInvoices_IsIdempotent()
     {
         var dbName = Guid.NewGuid().ToString();
         var (ledger, customers, integration) = CreateContexts(dbName);
@@ -58,16 +58,19 @@ public class PointsPostingServiceTests
             }
         };
 
-        var first = await service.ApplyInvoiceAsync(request);
-        var second = await service.ApplyInvoiceAsync(request);
+        await service.IngestInvoiceAsync(request);
+        await service.IngestInvoiceAsync(request); // duplicate ingest should be fine
 
-        Assert.False(first.WasDuplicate);
-        Assert.True(second.WasDuplicate);
-        Assert.Equal(first.NewBalance, second.NewBalance);
+        await service.ProcessPendingInvoicesAsync(10);
+        await service.ProcessPendingInvoicesAsync(10); // re-run should not duplicate ledger
+
+        var account = await ledger.PointsAccounts.FirstAsync(a => a.CustomerId == customer.Id);
+        Assert.Equal(20, account.Balance);
+        Assert.Equal(1, await ledger.PointsTransactions.CountAsync());
     }
 
     [Fact]
-    public async Task ApplyInvoice_AllowsSameInvoiceIdAcrossTenants()
+    public async Task ProcessPendingInvoices_AllowsSameInvoiceIdAcrossTenants()
     {
         var dbName = Guid.NewGuid().ToString();
         var (ledger, customers, integration) = CreateContexts(dbName);
@@ -108,12 +111,15 @@ public class PointsPostingServiceTests
             Lines = requestA.Lines
         };
 
-        var resultA = await service.ApplyInvoiceAsync(requestA);
-        var resultB = await service.ApplyInvoiceAsync(requestB);
+        await service.IngestInvoiceAsync(requestA);
+        await service.IngestInvoiceAsync(requestB);
+        await service.ProcessPendingInvoicesAsync(10);
 
-        Assert.False(resultA.WasDuplicate);
-        Assert.False(resultB.WasDuplicate);
-        Assert.Equal(20, resultA.PointsAwarded); // 200m spend => 20 points
-        Assert.Equal(20, resultB.PointsAwarded);
+        var accountA = await ledger.PointsAccounts.FirstAsync(a => a.CustomerId == customerA.Id);
+        var accountB = await ledger.PointsAccounts.FirstAsync(a => a.CustomerId == customerB.Id);
+
+        Assert.Equal(20, accountA.Balance); // 200m spend => 20 points
+        Assert.Equal(20, accountB.Balance);
+        Assert.Equal(2, await ledger.PointsTransactions.CountAsync());
     }
 }

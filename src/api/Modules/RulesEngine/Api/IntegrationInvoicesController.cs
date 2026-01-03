@@ -33,8 +33,8 @@ public class IntegrationInvoicesController : ControllerBase
     {
         try
         {
-            var result = await _service.ApplyInvoiceAsync(request, ct);
-            return Ok(result);
+            var correlationId = await _service.IngestInvoiceAsync(request, ct);
+            return Accepted(new { correlationId });
         }
         catch (ArgumentException ex)
         {

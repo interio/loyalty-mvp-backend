@@ -26,10 +26,16 @@ public class InboundDocument
     public string? PayloadHash { get; set; }
 
     /// <summary>Processing status.</summary>
-    public string Status { get; set; } = InboundDocumentStatus.Received;
+    public string Status { get; set; } = InboundDocumentStatus.PendingPoints;
 
     /// <summary>Error message if processing failed.</summary>
     public string? Error { get; set; }
+
+    /// <summary>Number of processing attempts.</summary>
+    public int AttemptCount { get; set; } = 0;
+
+    /// <summary>When processing was last attempted.</summary>
+    public DateTimeOffset? LastAttemptAt { get; set; }
 
     /// <summary>When the document was received.</summary>
     public DateTimeOffset ReceivedAt { get; set; } = DateTimeOffset.UtcNow;
