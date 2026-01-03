@@ -3,7 +3,7 @@ using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
+using System.Transactions;
 
 namespace Loyalty.Api.Modules.Customers.Application;
 
@@ -81,8 +81,7 @@ public interface ICustomerService
             var strategy = _db.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
             {
-                await using var tx = await _db.Database.BeginTransactionAsync(ct);
-                await _ledgerDb.Database.UseTransactionAsync(tx.GetDbTransaction(), ct);
+                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
 
                 _db.Customers.Add(customer);
                 _ledgerDb.PointsAccounts.Add(new PointsAccount
@@ -94,7 +93,8 @@ public interface ICustomerService
 
                 await _db.SaveChangesAsync(ct);
                 await _ledgerDb.SaveChangesAsync(ct);
-                await tx.CommitAsync(ct);
+
+                scope.Complete();
                 return customer;
             });
         }

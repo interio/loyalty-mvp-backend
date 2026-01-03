@@ -1,5 +1,4 @@
 using Loyalty.Api.Modules.Customers.Domain;
-using System.ComponentModel.DataAnnotations;
 
 namespace Loyalty.Api.Modules.LoyaltyLedger.Domain;
 
@@ -24,8 +23,4 @@ public class PointsAccount
 
     /// <summary>When the cached balance was last updated.</summary>
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
-
-    /// <summary>Concurrency token for balance updates.</summary>
-    [Timestamp]
-    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 }

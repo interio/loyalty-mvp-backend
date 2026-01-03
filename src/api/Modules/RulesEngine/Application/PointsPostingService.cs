@@ -9,7 +9,7 @@ using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
+using System.Transactions;
 
 namespace Loyalty.Api.Modules.RulesEngine.Application;
 
@@ -44,13 +44,9 @@ public class PointsPostingService
             var strategy = _ledgerDb.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
             {
-                await using var tx = await _ledgerDb.Database.BeginTransactionAsync(ct);
-                await _customersDb.Database.UseTransactionAsync(tx.GetDbTransaction(), ct);
-                await _integrationDb.Database.UseTransactionAsync(tx.GetDbTransaction(), ct);
-
+                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
                 var result = await ApplyInvoiceInternalAsync(request, ct);
-
-                await tx.CommitAsync(ct);
+                scope.Complete();
                 return result;
             });
         }

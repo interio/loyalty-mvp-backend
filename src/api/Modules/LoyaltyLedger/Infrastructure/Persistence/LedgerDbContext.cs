@@ -1,6 +1,7 @@
 using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
+using Loyalty.Api.Modules.Tenants.Domain;
 
 namespace Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 
@@ -16,6 +17,9 @@ public class LedgerDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Ignore tenant entity to avoid accidental table creation in this context.
+        modelBuilder.Ignore<Tenant>();
+
         modelBuilder.Entity<Customer>(e =>
         {
             e.HasKey(x => x.Id);
@@ -34,7 +38,6 @@ public class LedgerDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.CustomerId).IsUnique();
-            e.Property(x => x.RowVersion).IsRowVersion();
             e.ToTable("PointsAccounts");
         });
 

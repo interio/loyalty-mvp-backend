@@ -31,6 +31,7 @@ public class LedgerService : ILedgerService
 {
     private readonly LedgerDbContext _db;
     private readonly IUserLookup _users;
+    private bool IsRelational => _db.Database.IsRelational();
 
     /// <summary>Constructs the ledger service.</summary>
     public LedgerService(LedgerDbContext db, IUserLookup users)
@@ -95,8 +96,39 @@ public class LedgerService : ILedgerService
 
         // Debit points as a negative ledger entry.
         var delta = -command.Amount;
-        var newBalance = account.Balance + delta;
+        if (IsRelational)
+        {
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
+                var rows = await _db.PointsAccounts
+                    .Where(a => a.CustomerId == command.CustomerId && a.Balance >= command.Amount)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(a => a.Balance, a => a.Balance - command.Amount)
+                        .SetProperty(a => a.UpdatedAt, _ => DateTimeOffset.UtcNow), ct);
+
+                if (rows == 0)
+                    throw new Exception("Insufficient points.");
+
+                _db.PointsTransactions.Add(new PointsTransaction
+                {
+                    CustomerId = command.CustomerId,
+                    ActorUserId = command.ActorUserId,
+                    Amount = delta,
+                    Reason = reason,
+                    CorrelationId = corr
+                });
+
+                await _db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return await _db.PointsAccounts.FirstAsync(a => a.CustomerId == command.CustomerId, ct);
+            });
+        }
+
+        // Fallback for non-relational providers (e.g., in-memory tests).
+        var newBalance = account.Balance + delta;
         if (newBalance < 0)
             throw new Exception("Insufficient points.");
 
@@ -111,16 +143,8 @@ public class LedgerService : ILedgerService
 
         account.Balance = newBalance;
         account.UpdatedAt = DateTimeOffset.UtcNow;
-
-        try
-        {
-            await _db.SaveChangesAsync(ct);
-            return account;
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            throw new Exception("Concurrent update detected. Retry the operation.");
-        }
+        await _db.SaveChangesAsync(ct);
+        return account;
     }
 
     /// <inheritdoc />
@@ -162,6 +186,38 @@ public class LedgerService : ILedgerService
             corr = null;
         }
 
+        if (IsRelational)
+        {
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
+                var rows = await _db.PointsAccounts
+                    .Where(a => a.CustomerId == command.CustomerId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(a => a.Balance, a => a.Balance + command.Amount)
+                        .SetProperty(a => a.UpdatedAt, _ => DateTimeOffset.UtcNow), ct);
+
+                if (rows == 0)
+                    throw new Exception("Customer has no points account.");
+
+                _db.PointsTransactions.Add(new PointsTransaction
+                {
+                    CustomerId = command.CustomerId,
+                    ActorUserId = command.ActorUserId,
+                    Amount = command.Amount,
+                    Reason = reason,
+                    CorrelationId = corr
+                });
+
+                await _db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return await _db.PointsAccounts.FirstAsync(a => a.CustomerId == command.CustomerId, ct);
+            });
+        }
+
+        // Fallback for non-relational providers (e.g., in-memory tests).
         account.Balance += command.Amount;
         account.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -174,14 +230,7 @@ public class LedgerService : ILedgerService
             CorrelationId = corr
         });
 
-        try
-        {
-            await _db.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            throw new Exception("Concurrent update detected. Retry the operation.");
-        }
+        await _db.SaveChangesAsync(ct);
         return account;
     }
 }

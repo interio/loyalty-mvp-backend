@@ -3,6 +3,7 @@ using System;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
 {
     [DbContext(typeof(LedgerDbContext))]
-    partial class LedgerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260103130402_AddPointsAccountRowVersion")]
+    partial class AddPointsAccountRowVersion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -46,6 +49,8 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Customers", null, t =>
                         {
@@ -83,6 +88,8 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
 
                     b.HasIndex("CustomerId");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("Users", null, t =>
                         {
                             t.ExcludeFromMigrations();
@@ -100,6 +107,12 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
 
                     b.Property<Guid>("CustomerId")
                         .HasColumnType("uuid");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bytea");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -153,6 +166,17 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                     b.ToTable("PointsTransactions", (string)null);
                 });
 
+            modelBuilder.Entity("Loyalty.Api.Modules.Customers.Domain.Customer", b =>
+                {
+                    b.HasOne("Loyalty.Api.Modules.Tenants.Domain.Tenant", "Tenant")
+                        .WithMany("Customers")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Loyalty.Api.Modules.Customers.Domain.User", b =>
                 {
                     b.HasOne("Loyalty.Api.Modules.Customers.Domain.Customer", "Customer")
@@ -161,7 +185,15 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Loyalty.Api.Modules.Tenants.Domain.Tenant", "Tenant")
+                        .WithMany("Users")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Customer");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Loyalty.Api.Modules.LoyaltyLedger.Domain.PointsAccount", b =>
@@ -205,6 +237,13 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
             modelBuilder.Entity("Loyalty.Api.Modules.Customers.Domain.User", b =>
                 {
                     b.Navigation("InitiatedTransactions");
+                });
+
+            modelBuilder.Entity("Loyalty.Api.Modules.Tenants.Domain.Tenant", b =>
+                {
+                    b.Navigation("Customers");
+
+                    b.Navigation("Users");
                 });
 #pragma warning restore 612, 618
         }
