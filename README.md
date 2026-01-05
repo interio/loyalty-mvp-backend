@@ -37,6 +37,7 @@ dotnet ef database update --context TenantsDbContext
 dotnet ef database update --context CustomersDbContext
 dotnet ef database update --context LedgerDbContext
 dotnet ef database update --context IntegrationDbContext
+dotnet ef database update --context ProductsDbContext
 ```
 
 ## Run the API
