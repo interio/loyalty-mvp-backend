@@ -163,14 +163,15 @@ public class LedgerService : ILedgerService
         if (account is null)
             throw new Exception("Customer has no points account.");
 
-        if (command.ActorUserId is Guid actorId)
-        {
-            var actor = await _users.GetAsync(actorId, ct);
-            if (actor is null)
-                throw new Exception("Actor user not found.");
-            if (actor.CustomerId != command.CustomerId)
-                throw new Exception("Actor user does not belong to the specified customer.");
-        }
+        // todo: actor user must be an admin user. implement later when admin part is done
+        // if (command.ActorUserId is Guid actorId)
+        // {
+        //     var actor = await _users.GetAsync(actorId, ct);
+        //     if (actor is null)
+        //         throw new Exception("Actor user not found.");
+        //     if (actor.CustomerId != command.CustomerId)
+        //         throw new Exception("Actor user does not belong to the specified customer.");
+        // }
 
         // Optional idempotency using correlation id.
         var corr = command.CorrelationId?.Trim();
