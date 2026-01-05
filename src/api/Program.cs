@@ -46,9 +46,10 @@ builder.Services.AddScoped<ICustomerLookup>(sp => (CustomerService)sp.GetRequire
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserLookup>(sp => (UserService)sp.GetRequiredService<IUserService>());
 builder.Services.AddScoped<ILedgerService, LedgerService>();
-builder.Services.AddScoped<IInvoicePointsRuleProvider, HardcodedRulesProvider>();
+builder.Services.AddScoped<IInvoicePointsRuleProvider, DatabaseInvoicePointsRuleProvider>();
 builder.Services.AddScoped<PointsPostingService>();
 builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<PointsRuleService>();
 builder.Services.Configure<Loyalty.Api.Modules.RulesEngine.Application.InvoiceProcessorOptions>(
     builder.Configuration.GetSection("InvoiceProcessor"));
 builder.Services.AddHostedService<Loyalty.Api.Modules.RulesEngine.Application.InvoiceProcessingWorker>();

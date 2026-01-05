@@ -175,7 +175,7 @@ public class PointsPostingService
         var account = await _ledgerDb.PointsAccounts.FirstOrDefaultAsync(a => a.CustomerId == customer.Id, ct)
                       ?? throw new Exception("Customer has no points account.");
 
-        var points = CalculatePoints(request);
+        var points = await CalculatePointsAsync(request.TenantId, request, ct);
         if (points <= 0)
         {
             // No points, but still idempotent response.
@@ -219,10 +219,11 @@ public class PointsPostingService
         }
     }
 
-    private int CalculatePoints(InvoiceUpsertRequest request)
+    private async Task<int> CalculatePointsAsync(Guid tenantId, InvoiceUpsertRequest request, CancellationToken ct)
     {
         var total = 0;
-        foreach (var rule in _rules.GetRules())
+        var rules = await _rules.GetRulesAsync(tenantId, ct);
+        foreach (var rule in rules)
         {
             total += rule.CalculatePoints(request);
         }

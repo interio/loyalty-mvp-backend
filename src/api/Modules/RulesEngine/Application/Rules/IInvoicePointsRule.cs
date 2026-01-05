@@ -11,3 +11,10 @@ public interface IInvoicePointsRule
     /// <summary>Compute points for the invoice (>=0).</summary>
     int CalculatePoints(InvoiceUpsertRequest invoice);
 }
+
+/// <summary>Rule provider (DB-backed).</summary>
+public interface IInvoicePointsRuleProvider
+{
+    /// <summary>Fetch active rules for a tenant.</summary>
+    Task<IReadOnlyList<IInvoicePointsRule>> GetRulesAsync(Guid tenantId, CancellationToken ct = default);
+}
