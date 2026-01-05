@@ -3,6 +3,7 @@ WORKDIR /src
 
 # Copy csproj and restore
 COPY src/api/Loyalty.Api.csproj src/api/
+COPY tests/Loyalty.Api.Tests/Loyalty.Api.Tests.csproj tests/Loyalty.Api.Tests/
 COPY LoyaltyMvp.sln .
 RUN dotnet restore LoyaltyMvp.sln
 
