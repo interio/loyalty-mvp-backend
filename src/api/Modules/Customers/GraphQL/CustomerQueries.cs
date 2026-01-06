@@ -21,6 +21,14 @@ public class CustomerQueries
     public Task<List<Customer>> CustomersByTenantSearch(Guid tenantId, string search, [Service] ICustomerService customers) =>
         SafeExecute(() => customers.SearchByTenantAsync(tenantId, search));
 
+    /// <summary>Lists users for a tenant (admin UI).</summary>
+    public Task<List<User>> UsersByTenant(Guid tenantId, [Service] IUserService users) =>
+        SafeExecute(() => users.ListByTenantAsync(tenantId));
+
+    /// <summary>Searches users for a tenant.</summary>
+    public Task<List<User>> UsersByTenantSearch(Guid tenantId, string search, [Service] IUserService users) =>
+        SafeExecute(() => users.SearchByTenantAsync(tenantId, search));
+
     /// <summary>Lists users for a customer/outlet.</summary>
     public Task<List<User>> UsersByCustomer(Guid customerId, [Service] IUserService users) =>
         SafeExecute(() => users.ListByCustomerAsync(customerId));

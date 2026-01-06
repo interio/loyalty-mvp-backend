@@ -13,6 +13,12 @@ public interface IUserService
     /// <summary>List users belonging to a customer.</summary>
     Task<List<User>> ListByCustomerAsync(Guid customerId, int take = 500, CancellationToken ct = default);
 
+    /// <summary>List users belonging to a tenant.</summary>
+    Task<List<User>> ListByTenantAsync(Guid tenantId, int take = 500, CancellationToken ct = default);
+
+    /// <summary>Search users within a tenant.</summary>
+    Task<List<User>> SearchByTenantAsync(Guid tenantId, string search, int take = 200, CancellationToken ct = default);
+
     /// <summary>Create a user under a customer/tenant.</summary>
     Task<User> CreateAsync(CreateUserCommand command, CancellationToken ct = default);
 }
@@ -30,10 +36,43 @@ public class UserService : IUserService, IUserLookup
     /// <inheritdoc />
     public Task<List<User>> ListByCustomerAsync(Guid customerId, int take = 500, CancellationToken ct = default) =>
         _db.Users
+           .AsNoTracking()
+           .Include(u => u.Customer)
            .Where(u => u.CustomerId == customerId)
            .OrderBy(u => u.Email)
            .Take(take)
            .ToListAsync(ct);
+
+    /// <inheritdoc />
+    public Task<List<User>> ListByTenantAsync(Guid tenantId, int take = 500, CancellationToken ct = default) =>
+        _db.Users
+           .AsNoTracking()
+           .Include(u => u.Customer)
+           .Where(u => u.TenantId == tenantId)
+           .OrderBy(u => u.Email)
+           .Take(take)
+           .ToListAsync(ct);
+
+    /// <inheritdoc />
+    public Task<List<User>> SearchByTenantAsync(Guid tenantId, string search, int take = 200, CancellationToken ct = default)
+    {
+        var term = search?.Trim();
+        if (string.IsNullOrWhiteSpace(term)) return Task.FromResult(new List<User>());
+
+        var pattern = $"%{term}%";
+
+        return _db.Users
+           .AsNoTracking()
+           .Include(u => u.Customer)
+           .Where(u => u.TenantId == tenantId)
+           .Where(u =>
+                EF.Functions.ILike(u.Email, pattern) ||
+                (u.Role != null && EF.Functions.ILike(u.Role, pattern)) ||
+                (u.ExternalId != null && EF.Functions.ILike(u.ExternalId, pattern)))
+           .OrderBy(u => u.Email)
+           .Take(take)
+           .ToListAsync(ct);
+    }
 
     /// <inheritdoc />
     public async Task<User> CreateAsync(CreateUserCommand command, CancellationToken ct = default)
