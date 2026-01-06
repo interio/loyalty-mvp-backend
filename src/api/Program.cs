@@ -26,19 +26,29 @@ builder.Services
   .AddTypeExtension<Loyalty.Api.Modules.Tenants.GraphQL.TenantQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.Tenants.GraphQL.TenantMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerQueries>()
-  .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerMutations>();
+  .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerMutations>()
+  .AddTypeExtension<Loyalty.Api.Modules.Products.GraphQL.ProductQueries>();
 builder.Services.AddControllers();
 
 // Basic CORS for local admin UI (override with ALLOWED_ORIGINS env/comma list if needed).
-var allowedOrigins = (builder.Configuration["ALLOWED_ORIGINS"] ?? "http://localhost:3000")
+var allowedOrigins = (builder.Configuration["ALLOWED_ORIGINS"] ?? "http://localhost:3000,http://127.0.0.1:3000")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(ClientCors, policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        if (allowedOrigins.Contains("*"))
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+        else
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 

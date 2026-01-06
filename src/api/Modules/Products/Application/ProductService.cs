@@ -12,6 +12,33 @@ public class ProductService
 
     public ProductService(ProductsDbContext db) => _db = db;
 
+    /// <summary>List products.</summary>
+    public Task<List<Product>> ListAsync(int take = 500, CancellationToken ct = default) =>
+        _db.Products
+           .AsNoTracking()
+           .OrderBy(p => p.Name)
+           .Take(take)
+           .ToListAsync(ct);
+
+    /// <summary>Search products.</summary>
+    public Task<List<Product>> SearchAsync(string search, int take = 200, CancellationToken ct = default)
+    {
+        var term = search?.Trim();
+        if (string.IsNullOrWhiteSpace(term)) return Task.FromResult(new List<Product>());
+
+        var pattern = $"%{term}%";
+
+        return _db.Products
+           .AsNoTracking()
+           .Where(p =>
+                EF.Functions.ILike(p.Name, pattern) ||
+                EF.Functions.ILike(p.Sku, pattern) ||
+                (p.Gtin != null && EF.Functions.ILike(p.Gtin, pattern)))
+           .OrderBy(p => p.Name)
+           .Take(take)
+           .ToListAsync(ct);
+    }
+
     /// <summary>Upserts a batch of products.</summary>
     public async Task UpsertAsync(IEnumerable<ProductUpsertRequest> requests, CancellationToken ct = default)
     {
