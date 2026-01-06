@@ -41,18 +41,22 @@ public interface ICustomerService
 
     /// <inheritdoc />
     public Task<Customer?> GetAsync(Guid id, CancellationToken ct = default) =>
-        _db.Customers
-           .Include(c => c.PointsAccount)
-           .FirstOrDefaultAsync(c => c.Id == id, ct);
+        LoadPointsAsync(
+            _db.Customers
+               .AsNoTracking()
+               .Where(c => c.Id == id),
+            ct)
+        .ContinueWith(t => t.Result.FirstOrDefault(), ct);
 
     /// <inheritdoc />
     public Task<List<Customer>> ListByTenantAsync(Guid tenantId, int take = 500, CancellationToken ct = default) =>
-        _db.Customers
-           .Where(c => c.TenantId == tenantId)
-           .Include(c => c.PointsAccount)
-           .OrderBy(c => c.Name)
-           .Take(take)
-           .ToListAsync(ct);
+        LoadPointsAsync(
+            _db.Customers
+               .AsNoTracking()
+               .Where(c => c.TenantId == tenantId)
+               .OrderBy(c => c.Name)
+               .Take(take),
+            ct);
 
     /// <inheritdoc />
     public async Task<Customer> CreateAsync(CreateCustomerCommand command, CancellationToken ct = default)
@@ -114,4 +118,26 @@ public interface ICustomerService
     /// <inheritdoc />
     public Task<bool> BelongsToTenantAsync(Guid customerId, Guid tenantId, CancellationToken ct = default) =>
         _db.Customers.AnyAsync(c => c.Id == customerId && c.TenantId == tenantId, ct);
+
+    private async Task<List<Customer>> LoadPointsAsync(IQueryable<Customer> query, CancellationToken ct)
+    {
+        var customers = await query.ToListAsync(ct);
+        if (customers.Count == 0) return customers;
+
+        var ids = customers.Select(c => c.Id).ToList();
+        var accounts = await _ledgerDb.PointsAccounts
+            .AsNoTracking()
+            .Where(a => ids.Contains(a.CustomerId))
+            .ToDictionaryAsync(a => a.CustomerId, ct);
+
+        foreach (var c in customers)
+        {
+            if (accounts.TryGetValue(c.Id, out var acct))
+            {
+                c.PointsAccount = acct;
+            }
+        }
+
+        return customers;
+    }
 }
