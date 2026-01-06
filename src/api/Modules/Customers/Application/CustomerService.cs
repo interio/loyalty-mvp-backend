@@ -68,20 +68,15 @@ public interface ICustomerService
         var term = search?.Trim();
         if (string.IsNullOrWhiteSpace(term)) return Task.FromResult(new List<Customer>());
 
-        var query = EF.Functions.PlainToTsQuery("simple", term);
-
         var baseQuery = _db.Customers
             .AsNoTracking()
             .Where(c => c.TenantId == tenantId)
-            .Select(c => new
-            {
-                Customer = c,
-                SearchVector = EF.Functions.ToTsVector("simple", c.Name + " " + (c.ExternalId ?? string.Empty) + " " + (c.ContactEmail ?? string.Empty)),
-            })
-            .Where(x => x.SearchVector.Matches(query))
-            .OrderByDescending(x => x.SearchVector.Rank(query))
-            .ThenBy(x => x.Customer.Name)
-            .Select(x => x.Customer)
+            .Where(c =>
+                EF.Functions.ToTsVector(
+                        "simple",
+                        (c.Name ?? string.Empty) + " " + (c.ExternalId ?? string.Empty) + " " + (c.ContactEmail ?? string.Empty))
+                    .Matches(EF.Functions.PlainToTsQuery("simple", term)))
+            .OrderBy(c => c.Name)
             .Take(take);
 
         return LoadPointsAsync(baseQuery, ct);
