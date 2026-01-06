@@ -12,6 +12,14 @@ public class PointsRuleService
 
     public PointsRuleService(IntegrationDbContext db) => _db = db;
 
+    public Task<List<PointsRule>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default) =>
+        _db.PointsRules
+           .AsNoTracking()
+           .Where(r => r.TenantId == tenantId)
+           .OrderBy(r => r.Priority)
+           .ThenBy(r => r.CreatedAt)
+           .ToListAsync(ct);
+
     public async Task UpsertAsync(IEnumerable<PointsRuleUpsertRequest> requests, CancellationToken ct = default)
     {
         var list = requests?.ToList() ?? new();
