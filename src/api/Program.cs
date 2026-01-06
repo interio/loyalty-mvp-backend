@@ -13,6 +13,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+const string ClientCors = "ClientCors";
+
 // TODO: Add authentication/authorization to protect REST and GraphQL endpoints.
 builder.Services
   .AddGraphQLServer()
@@ -26,6 +28,19 @@ builder.Services
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerMutations>();
 builder.Services.AddControllers();
+
+// Basic CORS for local admin UI (override with ALLOWED_ORIGINS env/comma list if needed).
+var allowedOrigins = (builder.Configuration["ALLOWED_ORIGINS"] ?? "http://localhost:3000")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(ClientCors, policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 var cs = builder.Configuration.GetConnectionString("Default");
 if (string.IsNullOrWhiteSpace(cs))
@@ -56,6 +71,7 @@ builder.Services.AddHostedService<Loyalty.Api.Modules.RulesEngine.Application.In
 
 var app = builder.Build();
 
+app.UseCors(ClientCors);
 app.MapControllers();
 app.MapGraphQL("/graphql");
 app.Run();
