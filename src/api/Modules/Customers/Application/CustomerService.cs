@@ -4,6 +4,7 @@ using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.Transactions;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 
 namespace Loyalty.Api.Modules.Customers.Application;
 
@@ -18,6 +19,9 @@ public interface ICustomerService
 
     /// <summary>List customers for a tenant.</summary>
     Task<List<Customer>> ListByTenantAsync(Guid tenantId, int take = 500, CancellationToken ct = default);
+
+    /// <summary>Search customers for a tenant using Postgres full-text search.</summary>
+    Task<List<Customer>> SearchByTenantAsync(Guid tenantId, string search, int take = 100, CancellationToken ct = default);
 
     /// <summary>Create a customer and seed its points account.</summary>
     Task<Customer> CreateAsync(CreateCustomerCommand command, CancellationToken ct = default);
@@ -57,6 +61,31 @@ public interface ICustomerService
                .OrderBy(c => c.Name)
                .Take(take),
             ct);
+
+    /// <inheritdoc />
+    public Task<List<Customer>> SearchByTenantAsync(Guid tenantId, string search, int take = 100, CancellationToken ct = default)
+    {
+        var term = search?.Trim();
+        if (string.IsNullOrWhiteSpace(term)) return Task.FromResult(new List<Customer>());
+
+        var query = EF.Functions.PlainToTsQuery("simple", term);
+
+        var baseQuery = _db.Customers
+            .AsNoTracking()
+            .Where(c => c.TenantId == tenantId)
+            .Select(c => new
+            {
+                Customer = c,
+                SearchVector = EF.Functions.ToTsVector("simple", c.Name + " " + (c.ExternalId ?? string.Empty) + " " + (c.ContactEmail ?? string.Empty)),
+            })
+            .Where(x => x.SearchVector.Matches(query))
+            .OrderByDescending(x => x.SearchVector.Rank(query))
+            .ThenBy(x => x.Customer.Name)
+            .Select(x => x.Customer)
+            .Take(take);
+
+        return LoadPointsAsync(baseQuery, ct);
+    }
 
     /// <inheritdoc />
     public async Task<Customer> CreateAsync(CreateCustomerCommand command, CancellationToken ct = default)

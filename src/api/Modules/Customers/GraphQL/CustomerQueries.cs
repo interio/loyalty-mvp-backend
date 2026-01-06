@@ -17,6 +17,10 @@ public class CustomerQueries
     public Task<List<Customer>> CustomersByTenant(Guid tenantId, [Service] ICustomerService customers) =>
         SafeExecute(() => customers.ListByTenantAsync(tenantId));
 
+    /// <summary>Searches customers for a tenant using Postgres full-text search.</summary>
+    public Task<List<Customer>> CustomersByTenantSearch(Guid tenantId, string search, [Service] ICustomerService customers) =>
+        SafeExecute(() => customers.SearchByTenantAsync(tenantId, search));
+
     /// <summary>Lists users for a customer/outlet.</summary>
     public Task<List<User>> UsersByCustomer(Guid customerId, [Service] IUserService users) =>
         SafeExecute(() => users.ListByCustomerAsync(customerId));
