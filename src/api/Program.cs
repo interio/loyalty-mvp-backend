@@ -28,7 +28,8 @@ builder.Services
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.Products.GraphQL.ProductQueries>()
-  .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.PointsRuleQueries>();
+  .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.PointsRuleQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.InvoiceQueries>();
 builder.Services.AddControllers();
 
 // Basic CORS for local admin UI (override with ALLOWED_ORIGINS env/comma list if needed).
