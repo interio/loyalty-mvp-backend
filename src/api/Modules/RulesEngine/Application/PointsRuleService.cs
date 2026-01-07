@@ -20,6 +20,9 @@ public class PointsRuleService
            .ThenBy(r => r.CreatedAt)
            .ToListAsync(ct);
 
+    public Task<bool> ExistsAsync(Guid id, CancellationToken ct = default) =>
+        _db.PointsRules.AnyAsync(r => r.Id == id, ct);
+
     public async Task UpsertAsync(IEnumerable<PointsRuleUpsertRequest> requests, CancellationToken ct = default)
     {
         var list = requests?.ToList() ?? new();
@@ -61,6 +64,16 @@ public class PointsRuleService
             rule.Conditions = conditions;
         }
 
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var rule = await _db.PointsRules.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (rule is null)
+            throw new System.Collections.Generic.KeyNotFoundException("Rule not found.");
+
+        _db.PointsRules.Remove(rule);
         await _db.SaveChangesAsync(ct);
     }
 

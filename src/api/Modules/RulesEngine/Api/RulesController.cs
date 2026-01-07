@@ -40,4 +40,61 @@ public class RulesController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError, "Unexpected error.");
         }
     }
+
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] PointsRuleUpsertRequest request, CancellationToken ct)
+    {
+        try
+        {
+            if (!await _service.ExistsAsync(id, ct))
+                return NotFound("Rule not found.");
+
+            request.Id = id;
+            await _service.UpsertAsync(new[] { request }, ct);
+            return Ok();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (System.Collections.Generic.KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            if (_env.IsDevelopment())
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.ToString());
+
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unexpected error.");
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await _service.DeleteAsync(id, ct);
+            return Ok();
+        }
+        catch (System.Collections.Generic.KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            if (_env.IsDevelopment())
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.ToString());
+
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unexpected error.");
+        }
+    }
 }
