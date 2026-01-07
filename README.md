@@ -76,6 +76,7 @@ dotnet ef migrations add <Name> --context IntegrationDbContext --output-dir Modu
 ```
 
 ## Notes / TODOs
+- Add pagination/limits to list queries in the admin UI and API (customers, users, invoices, products, rules, transactions).
 - Admin UI auth is a placeholder; secure GraphQL/REST with authentication/authorization.
 - Cross-context lookups use IDs; navigations across DbContexts are avoided to ease future extraction.
 - Ensure correlation IDs are provided for idempotent ledger operations (GraphQL and REST).
