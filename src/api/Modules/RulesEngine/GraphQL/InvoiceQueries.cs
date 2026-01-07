@@ -41,18 +41,26 @@ public class InvoiceQueries
             parsed = null;
         }
 
+        var lines = parsed?.Lines?
+            .Select(l => new InboundInvoiceLineDto(l.Sku, l.Quantity, l.NetAmount))
+            .ToList() ?? new List<InboundInvoiceLineDto>();
+
         return new InboundInvoiceDto(
             doc.Id,
             doc.TenantId,
             doc.ExternalId,
             parsed?.CustomerExternalId,
+            parsed?.Currency,
+            parsed?.ActorEmail,
+            parsed?.ActorExternalId,
             parsed?.OccurredAt,
             doc.ReceivedAt,
             doc.Status,
             doc.AttemptCount,
             doc.LastAttemptAt,
             doc.ProcessedAt,
-            doc.Error);
+            doc.Error,
+            lines);
     }
 
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
@@ -74,10 +82,20 @@ public record InboundInvoiceDto(
     Guid TenantId,
     string InvoiceId,
     string? CustomerExternalId,
+    string? Currency,
+    string? ActorEmail,
+    string? ActorExternalId,
     DateTimeOffset? OccurredAt,
     DateTimeOffset ReceivedAt,
     string Status,
     int AttemptCount,
     DateTimeOffset? LastAttemptAt,
     DateTimeOffset? ProcessedAt,
-    string? Error);
+    string? Error,
+    List<InboundInvoiceLineDto> Lines);
+
+/// <summary>Invoice line summary.</summary>
+public record InboundInvoiceLineDto(
+    string Sku,
+    decimal Quantity,
+    decimal NetAmount);
