@@ -58,6 +58,7 @@ public class IntegrationDbContext : DbContext
             e.Property(x => x.RuleType).IsRequired().HasMaxLength(100);
             e.Property(x => x.Priority).HasDefaultValue(0);
             e.Property(x => x.Active).HasDefaultValue(true);
+            e.Property(x => x.RuleVersion).HasDefaultValue(1);
             e.Property(x => x.EffectiveFrom).IsRequired();
             e.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             e.Property(x => x.Conditions)

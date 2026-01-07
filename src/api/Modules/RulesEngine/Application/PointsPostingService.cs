@@ -175,7 +175,7 @@ public class PointsPostingService
         var account = await _ledgerDb.PointsAccounts.FirstOrDefaultAsync(a => a.CustomerId == customer.Id, ct)
                       ?? throw new Exception("Customer has no points account.");
 
-        var points = await CalculatePointsAsync(request.TenantId, request, ct);
+        var (points, appliedRules) = await CalculatePointsAsync(request.TenantId, request, ct);
         if (points <= 0)
         {
             // No points, but still idempotent response.
@@ -192,7 +192,12 @@ public class PointsPostingService
             Amount = points,
             Reason = PointsReasons.InvoiceEarn,
             CorrelationId = correlationId,
-            CreatedAt = request.OccurredAt
+            CreatedAt = request.OccurredAt,
+            AppliedRules = appliedRules.Count > 0
+                ? JsonSerializer.SerializeToDocument(
+                    appliedRules,
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                : null
         });
 
         await _ledgerDb.SaveChangesAsync(ct);
@@ -219,16 +224,47 @@ public class PointsPostingService
         }
     }
 
-    private async Task<int> CalculatePointsAsync(Guid tenantId, InvoiceUpsertRequest request, CancellationToken ct)
+    private async Task<(int total, List<AppliedRuleSnapshot> appliedRules)> CalculatePointsAsync(
+        Guid tenantId,
+        InvoiceUpsertRequest request,
+        CancellationToken ct)
     {
         var total = 0;
+        var appliedRules = new List<AppliedRuleSnapshot>();
         var rules = await _rules.GetRulesAsync(tenantId, ct);
         foreach (var rule in rules)
         {
-            total += rule.CalculatePoints(request);
+            var points = rule.CalculatePoints(request);
+            if (points <= 0) continue;
+            total += points;
+            if (rule is IInvoicePointsRuleWithMetadata metaRule)
+            {
+                var conditionsNode = JsonNode.Parse(metaRule.Metadata.Conditions.RootElement.GetRawText()) as JsonObject ?? new JsonObject();
+                appliedRules.Add(new AppliedRuleSnapshot(
+                    metaRule.Metadata.RuleId,
+                    metaRule.Metadata.RuleVersion,
+                    metaRule.Metadata.RuleType,
+                    metaRule.Metadata.Priority,
+                    metaRule.Metadata.Active,
+                    metaRule.Metadata.EffectiveFrom,
+                    metaRule.Metadata.EffectiveTo,
+                    conditionsNode,
+                    points));
+            }
         }
-        return total;
+        return (total, appliedRules);
     }
+
+    private sealed record AppliedRuleSnapshot(
+        Guid RuleId,
+        int RuleVersion,
+        string RuleType,
+        int Priority,
+        bool Active,
+        DateTimeOffset EffectiveFrom,
+        DateTimeOffset? EffectiveTo,
+        JsonObject Conditions,
+        int PointsAwarded);
 
     private async Task<Guid?> ResolveActorUserId(InvoiceUpsertRequest request, Guid customerId, CancellationToken ct)
     {

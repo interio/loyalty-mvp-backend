@@ -39,7 +39,19 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
             {
                 var parsed = ParseRule(row);
                 if (parsed != null)
-                    rules.Add(parsed);
+                {
+                    var conditionsJson = row.Conditions?.RootElement.GetRawText() ?? "{}";
+                    var metadata = new InvoiceRuleMetadata(
+                        row.Id,
+                        row.RuleVersion,
+                        row.RuleType,
+                        row.Priority,
+                        row.Active,
+                        row.EffectiveFrom,
+                        row.EffectiveTo,
+                        JsonDocument.Parse(conditionsJson));
+                    rules.Add(new MetadataInvoicePointsRule(parsed, metadata));
+                }
             }
             catch (Exception ex)
             {

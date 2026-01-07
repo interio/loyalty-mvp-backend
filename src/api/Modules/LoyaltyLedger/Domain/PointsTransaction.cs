@@ -1,3 +1,5 @@
+using System.Text.Json;
+using HotChocolate;
 using Loyalty.Api.Modules.Customers.Domain;
 
 namespace Loyalty.Api.Modules.LoyaltyLedger.Domain;
@@ -43,4 +45,8 @@ public class PointsTransaction
 
     /// <summary>Creation timestamp in UTC.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Applied rules snapshot for audit/traceability.</summary>
+    [GraphQLIgnore]
+    public JsonDocument? AppliedRules { get; set; }
 }

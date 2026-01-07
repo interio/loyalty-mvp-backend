@@ -46,13 +46,15 @@ public class PointsRuleService
                 rule = new PointsRule
                 {
                     Id = req.Id ?? Guid.NewGuid(),
-                    CreatedAt = DateTimeOffset.UtcNow
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    RuleVersion = 1
                 };
                 _db.PointsRules.Add(rule);
             }
             else
             {
                 rule.UpdatedAt = DateTimeOffset.UtcNow;
+                rule.RuleVersion += 1;
             }
 
             rule.TenantId = req.TenantId;

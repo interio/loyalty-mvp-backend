@@ -14,6 +14,7 @@ public partial class PointsRule
     [GraphQLIgnore] public JsonDocument Conditions { get; set; } = JsonDocument.Parse("{}");
     public bool Active { get; set; } = true;
     public int Priority { get; set; } = 0;
+    public int RuleVersion { get; set; } = 1;
     public DateTimeOffset EffectiveFrom { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? EffectiveTo { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

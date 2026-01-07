@@ -1,7 +1,10 @@
+using System.Text.Json;
 using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 using Loyalty.Api.Modules.Tenants.Domain;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Linq;
 
 namespace Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 
@@ -47,6 +50,12 @@ public class LedgerDbContext : DbContext
 
             e.Property(x => x.Reason).IsRequired().HasMaxLength(200);
             e.Property(x => x.CorrelationId).HasMaxLength(200);
+            e.Property(x => x.AppliedRules)
+                .HasConversion(
+                    v => v == null ? null : JsonSerializer.Serialize(v, new JsonSerializerOptions()),
+                    v => v == null ? null : JsonDocument.Parse(v, new JsonDocumentOptions()))
+                .HasColumnType("jsonb")
+                .Metadata.SetValueComparer(JsonDocumentComparer);
 
             e.HasOne(x => x.Customer)
                 .WithMany(c => c.Transactions)
@@ -62,5 +71,54 @@ public class LedgerDbContext : DbContext
             e.HasIndex(x => new { x.CustomerId, x.CorrelationId }).IsUnique();
             e.ToTable("PointsTransactions");
         });
+    }
+
+    private static readonly ValueComparer<JsonDocument?> JsonDocumentComparer = new(
+        (l, r) => JsonDocumentEquals(l, r),
+        v => JsonDocumentHash(v),
+        v => JsonDocumentSnapshot(v));
+
+    private static bool JsonDocumentEquals(JsonDocument? left, JsonDocument? right)
+    {
+        if (left is null && right is null) return true;
+        if (left is null || right is null) return false;
+        return JsonDocumentDeepEquals(left.RootElement, right.RootElement);
+    }
+
+    private static int JsonDocumentHash(JsonDocument? value) =>
+        value == null ? 0 : JsonSerializer.Serialize(value, new JsonSerializerOptions()).GetHashCode();
+
+    private static JsonDocument? JsonDocumentSnapshot(JsonDocument? value) =>
+        value == null ? null : JsonDocument.Parse(JsonSerializer.Serialize(value, new JsonSerializerOptions()));
+
+    private static bool JsonDocumentDeepEquals(JsonElement left, JsonElement right)
+    {
+        if (left.ValueKind != right.ValueKind) return false;
+        switch (left.ValueKind)
+        {
+            case JsonValueKind.Object:
+                {
+                    var leftProps = left.EnumerateObject().OrderBy(p => p.Name);
+                    var rightProps = right.EnumerateObject().OrderBy(p => p.Name);
+                    return leftProps.SequenceEqual(rightProps, new JsonPropertyComparer());
+                }
+            case JsonValueKind.Array:
+                {
+                    var leftItems = left.EnumerateArray().ToList();
+                    var rightItems = right.EnumerateArray().ToList();
+                    return leftItems.Count == rightItems.Count &&
+                           leftItems.Zip(rightItems).All(pair => JsonDocumentDeepEquals(pair.First, pair.Second));
+                }
+            default:
+                return left.ToString() == right.ToString();
+        }
+    }
+
+    private sealed class JsonPropertyComparer : IEqualityComparer<JsonProperty>
+    {
+        public bool Equals(JsonProperty x, JsonProperty y) =>
+            x.Name == y.Name && JsonDocumentDeepEquals(x.Value, y.Value);
+
+        public int GetHashCode(JsonProperty obj) => HashCode.Combine(obj.Name, obj.Value.ToString());
     }
 }
