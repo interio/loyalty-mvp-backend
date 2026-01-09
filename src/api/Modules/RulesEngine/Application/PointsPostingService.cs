@@ -192,7 +192,7 @@ public class PointsPostingService
             Amount = points,
             Reason = PointsReasons.InvoiceEarn,
             CorrelationId = correlationId,
-            CreatedAt = request.OccurredAt,
+            CreatedAt = DateTimeOffset.UtcNow,
             AppliedRules = appliedRules.Count > 0
                 ? JsonSerializer.SerializeToDocument(
                     appliedRules,
