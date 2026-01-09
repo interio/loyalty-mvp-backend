@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
 using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
@@ -59,5 +60,13 @@ public class RulesTests
         var total = provider.GetRules().Sum(r => r.CalculatePoints(request));
         // Spend rule: floor((360+640)/100)*10 = 100 points. SKU rule: 25 points.
         Assert.Equal(125, total);
+    }
+
+    [Fact]
+    public async Task HardcodedRulesProvider_GetRulesAsync()
+    {
+        var provider = new HardcodedRulesProvider();
+        var rules = await provider.GetRulesAsync(Guid.NewGuid());
+        Assert.Equal(2, rules.Count);
     }
 }

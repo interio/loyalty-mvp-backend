@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Include>[Loyalty.Api]Loyalty.Api.Modules.*.Application*</Include>
+          <Include>[Loyalty.Api]Loyalty.Api.Modules.*.Domain*</Include>
+          <ExcludeByFile>**/Migrations/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/Program.cs</ExcludeByFile>
+          <ExcludeByFile>**/*DbContextFactory.cs</ExcludeByFile>
+          <ExcludeByFile>**/GraphQL/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/Api/*.cs</ExcludeByFile>
+          <Threshold>100</Threshold>
+          <ThresholdType>line</ThresholdType>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
@@ -8,6 +11,7 @@ using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
+using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -121,5 +125,262 @@ public class PointsPostingServiceTests
         Assert.Equal(20, accountA.Balance); // 200m spend => 20 points
         Assert.Equal(20, accountB.Balance);
         Assert.Equal(2, await ledger.PointsTransactions.CountAsync());
+    }
+
+    [Fact]
+    public async Task IngestInvoiceAsync_UpdatesExistingDocument()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var (ledger, customers, integration) = CreateContexts(dbName);
+
+        var tenantId = Guid.NewGuid();
+        var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
+        customers.Customers.Add(customer);
+        await customers.SaveChangesAsync();
+        ledger.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
+        await ledger.SaveChangesAsync();
+
+        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+
+        var request = new InvoiceUpsertRequest
+        {
+            TenantId = tenantId,
+            InvoiceId = "INV-2",
+            CustomerExternalId = "CUST-1",
+            OccurredAt = DateTimeOffset.UtcNow,
+            Lines = new List<InvoiceLineRequest>
+            {
+                new() { Sku = "A", Quantity = 1, NetAmount = 200m }
+            }
+        };
+
+        await service.IngestInvoiceAsync(request);
+        await service.IngestInvoiceAsync(request);
+
+        var doc = await integration.InboundDocuments.FirstAsync();
+        Assert.Equal(InboundDocumentStatus.PendingPoints, doc.Status);
+        Assert.Null(doc.Error);
+    }
+
+    [Fact]
+    public async Task AwardInvoiceAsync_ResolvesActorUserId()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var (ledger, customers, integration) = CreateContexts(dbName);
+
+        var tenantId = Guid.NewGuid();
+        var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
+        customers.Customers.Add(customer);
+        await customers.SaveChangesAsync();
+        ledger.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
+        await ledger.SaveChangesAsync();
+
+        var actor = new User
+        {
+            TenantId = tenantId,
+            CustomerId = customer.Id,
+            Email = "actor@test.com",
+            ExternalId = "ACT-1"
+        };
+        customers.Users.Add(actor);
+        await customers.SaveChangesAsync();
+
+        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+
+        var request = new InvoiceUpsertRequest
+        {
+            TenantId = tenantId,
+            InvoiceId = "INV-3",
+            CustomerExternalId = "CUST-1",
+            ActorExternalId = "ACT-1",
+            OccurredAt = DateTimeOffset.UtcNow,
+            Lines = new List<InvoiceLineRequest>
+            {
+                new() { Sku = "BEER-HEINEKEN-BTL-24PK", Quantity = 4m, NetAmount = 0m }
+            }
+        };
+
+        var response = await service.AwardInvoiceAsync(request);
+        Assert.False(response.WasDuplicate);
+
+        var tx = await ledger.PointsTransactions.FirstAsync();
+        Assert.Equal(actor.Id, tx.ActorUserId);
+
+        request.ActorExternalId = null;
+        request.ActorEmail = "actor@test.com";
+        request.InvoiceId = "INV-4";
+
+        await service.AwardInvoiceAsync(request);
+        var second = await ledger.PointsTransactions.OrderBy(t => t.CreatedAt).LastAsync();
+        Assert.Equal(actor.Id, second.ActorUserId);
+    }
+
+    [Fact]
+    public async Task AwardInvoiceAsync_ValidatesRequest()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var (ledger, customers, integration) = CreateContexts(dbName);
+
+        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+
+        var request = new InvoiceUpsertRequest
+        {
+            TenantId = Guid.Empty,
+            InvoiceId = " ",
+            CustomerExternalId = " ",
+            OccurredAt = default,
+            Lines = new List<InvoiceLineRequest>()
+        };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.AwardInvoiceAsync(request));
+        Assert.Contains("tenantId is required", ex.Message);
+
+        request.TenantId = Guid.NewGuid();
+        var exInvoice = await Assert.ThrowsAsync<ArgumentException>(() => service.AwardInvoiceAsync(request));
+        Assert.Contains("invoiceId is required", exInvoice.Message);
+
+        request.InvoiceId = "INV";
+        var exOccurred = await Assert.ThrowsAsync<ArgumentException>(() => service.AwardInvoiceAsync(request));
+        Assert.Contains("occurredAt is required", exOccurred.Message);
+
+        request.OccurredAt = DateTimeOffset.UtcNow;
+        var exCustomer = await Assert.ThrowsAsync<ArgumentException>(() => service.AwardInvoiceAsync(request));
+        Assert.Contains("customerExternalId is required", exCustomer.Message);
+
+        request.CustomerExternalId = "CUST";
+        var exLines = await Assert.ThrowsAsync<ArgumentException>(() => service.AwardInvoiceAsync(request));
+        Assert.Contains("lines are required", exLines.Message);
+
+        request.Lines = new List<InvoiceLineRequest>
+        {
+            new() { Sku = " ", Quantity = 1, NetAmount = 1m }
+        };
+        var exSku = await Assert.ThrowsAsync<ArgumentException>(() => service.AwardInvoiceAsync(request));
+        Assert.Contains("line.sku is required", exSku.Message);
+
+        request.Lines = new List<InvoiceLineRequest>
+        {
+            new() { Sku = "SKU", Quantity = -1, NetAmount = 1m }
+        };
+        var exQty = await Assert.ThrowsAsync<ArgumentException>(() => service.AwardInvoiceAsync(request));
+        Assert.Contains("line.quantity must be >= 0", exQty.Message);
+
+        request.Lines = new List<InvoiceLineRequest>
+        {
+            new() { Sku = "SKU", Quantity = 1, NetAmount = -1m }
+        };
+        var exNet = await Assert.ThrowsAsync<ArgumentException>(() => service.AwardInvoiceAsync(request));
+        Assert.Contains("line.netAmount must be >= 0", exNet.Message);
+    }
+
+    [Fact]
+    public async Task AwardInvoiceAsync_ReturnsDuplicateWhenAlreadyPosted()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var (ledger, customers, integration) = CreateContexts(dbName);
+
+        var tenantId = Guid.NewGuid();
+        var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
+        customers.Customers.Add(customer);
+        await customers.SaveChangesAsync();
+        ledger.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
+        await ledger.SaveChangesAsync();
+
+        ledger.PointsTransactions.Add(new PointsTransaction
+        {
+            CustomerId = customer.Id,
+            Amount = 10,
+            Reason = PointsReasons.InvoiceEarn,
+            CorrelationId = "INV-dup"
+        });
+        await ledger.SaveChangesAsync();
+
+        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        var response = await service.AwardInvoiceAsync(new InvoiceUpsertRequest
+        {
+            TenantId = tenantId,
+            InvoiceId = "INV-dup",
+            CustomerExternalId = "CUST-1",
+            OccurredAt = DateTimeOffset.UtcNow,
+            Lines = new List<InvoiceLineRequest> { new() { Sku = "A", Quantity = 1, NetAmount = 100m } }
+        });
+
+        Assert.True(response.WasDuplicate);
+    }
+
+    [Fact]
+    public async Task ProcessPendingInvoicesAsync_MarksFailedOnError()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var (ledger, customers, integration) = CreateContexts(dbName);
+
+        var tenantId = Guid.NewGuid();
+        integration.InboundDocuments.Add(new InboundDocument
+        {
+            TenantId = tenantId,
+            ExternalId = "INV-bad",
+            DocumentType = "invoice",
+            Payload = new System.Text.Json.Nodes.JsonObject(),
+            Status = InboundDocumentStatus.PendingPoints
+        });
+        await integration.SaveChangesAsync();
+
+        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        await service.ProcessPendingInvoicesAsync(10);
+
+        var doc = await integration.InboundDocuments.FirstAsync();
+        Assert.Equal(InboundDocumentStatus.Failed, doc.Status);
+        Assert.NotNull(doc.Error);
+    }
+
+    [Fact]
+    public async Task AwardInvoiceAsync_WritesAppliedRulesSnapshot()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var (ledger, customers, integration) = CreateContexts(dbName);
+
+        var tenantId = Guid.NewGuid();
+        var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
+        customers.Customers.Add(customer);
+        await customers.SaveChangesAsync();
+        ledger.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
+        await ledger.SaveChangesAsync();
+
+        var rule = new MetadataInvoicePointsRule(
+            new SpendRule(100m, 10),
+            new InvoiceRuleMetadata(Guid.NewGuid(), 1, "spend", 0, true, DateTimeOffset.UtcNow, null, JsonDocument.Parse("{}")));
+
+        var service = new PointsPostingService(ledger, customers, integration, new SingleRuleProvider(rule));
+        await service.AwardInvoiceAsync(new InvoiceUpsertRequest
+        {
+            TenantId = tenantId,
+            InvoiceId = "INV-meta",
+            CustomerExternalId = "CUST-1",
+            OccurredAt = DateTimeOffset.UtcNow,
+            Lines = new List<InvoiceLineRequest> { new() { Sku = "A", Quantity = 1, NetAmount = 200m } }
+        });
+
+        var tx = await ledger.PointsTransactions.FirstAsync();
+        Assert.NotNull(tx.AppliedRules);
+    }
+
+    [Fact]
+    public async Task ProcessPendingInvoicesAsync_IgnoresInvalidBatchSize()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var (ledger, customers, integration) = CreateContexts(dbName);
+        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+
+        await service.ProcessPendingInvoicesAsync(0);
+    }
+
+    private sealed class SingleRuleProvider : IInvoicePointsRuleProvider
+    {
+        private readonly IInvoicePointsRule _rule;
+
+        public SingleRuleProvider(IInvoicePointsRule rule) => _rule = rule;
+
+        public Task<IReadOnlyList<IInvoicePointsRule>> GetRulesAsync(Guid tenantId, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<IInvoicePointsRule>>(new[] { _rule });
     }
 }
