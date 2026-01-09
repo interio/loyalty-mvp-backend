@@ -142,6 +142,7 @@ public static class TestDbContextFactory
         await db.Database.ExecuteSqlRawAsync(
             "CREATE TABLE IF NOT EXISTS \"RewardProducts\" (" +
             "\"Id\" uuid PRIMARY KEY, " +
+            "\"TenantId\" uuid NOT NULL, " +
             "\"RewardVendor\" character varying(200) NOT NULL, " +
             "\"Sku\" character varying(200) NOT NULL, " +
             "\"Gtin\" character varying(50) NULL, " +

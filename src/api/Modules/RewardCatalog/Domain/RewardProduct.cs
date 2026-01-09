@@ -12,6 +12,9 @@ public class RewardProduct
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    /// <summary>Tenant that owns this catalog entry.</summary>
+    public Guid TenantId { get; set; }
+
     /// <summary>External reward vendor identifier.</summary>
     public string RewardVendor { get; set; } = default!;
 

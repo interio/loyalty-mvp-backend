@@ -107,3 +107,63 @@ Content-Type: application/json
     { "sku": "BEER-HEINEKEN-BTL-24PK", "quantity": 4, "netAmount": 360.00 }
   ]
 }
+
+5) Reward catalog (REST)
+POST /api/v1/rewards/catalog/upsert
+Content-Type: application/json
+{
+  "products": [
+    {
+      "tenantId": "TENANT_ID",
+      "rewardVendor": "GiftVendor-001",
+      "sku": "GIFT-CARD-25",
+      "gtin": "00012345678905",
+      "name": "Gift Card 25 EUR",
+      "pointsCost": 250,
+      "inventoryQuantity": 100,
+      "attributes": { "category": "gift-card", "currency": "EUR" }
+    },
+    {
+      "tenantId": "TENANT_ID",
+      "rewardVendor": "GiftVendor-001",
+      "sku": "MERCH-TUMBLER",
+      "name": "Heineken Tumbler",
+      "pointsCost": 120,
+      "inventoryQuantity": 50,
+      "attributes": { "category": "merch", "color": "green" }
+    }
+  ]
+}
+Capture rewardProductId(s) via GraphQL query if needed.
+
+6) Reward order (GraphQL)
+POST /graphql
+{
+  "query": "mutation ($input: PlaceRewardOrderRequestInput!) { placeRewardOrder(request: $input) { id status totalPoints placedOnBehalf items { rewardProductId quantity pointsCost totalPoints } } }",
+  "variables": {
+    "input": {
+      "tenantId": "TENANT_ID",
+      "customerId": "CUSTOMER_A_ID",
+      "actorUserId": "USER_A1_ID",
+      "items": [
+        { "rewardProductId": "REWARD_PRODUCT_ID_1", "quantity": 2 }
+      ]
+    }
+  }
+}
+
+7) Reward order on behalf (GraphQL)
+POST /graphql
+{
+  "query": "mutation ($input: PlaceRewardOrderOnBehalfRequest!) { placeRewardOrderOnBehalf(request: $input) { id status totalPoints placedOnBehalf items { rewardProductId quantity pointsCost totalPoints } } }",
+  "variables": {
+    "input": {
+      "tenantId": "TENANT_ID",
+      "customerId": "CUSTOMER_A_ID",
+      "adminUserId": "USER_A2_ID",
+      "items": [
+        { "rewardProductId": "REWARD_PRODUCT_ID_2", "quantity": 1 }
+      ]
+    }
+  }
+}

@@ -2,6 +2,7 @@ namespace Loyalty.Api.Modules.RewardCatalog.Application;
 
 public class RewardProductUpsertRequest
 {
+    public Guid TenantId { get; set; }
     public string RewardVendor { get; set; } = default!;
     public string Sku { get; set; } = default!;
     public string? Gtin { get; set; }

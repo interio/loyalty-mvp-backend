@@ -19,11 +19,13 @@ public class RewardCatalogServiceTests
         await TestDbContextFactory.EnsureRewardCatalogSchemaAsync(catalogDb);
 
         var service = new RewardCatalogService(catalogDb);
+        var tenantId = Guid.NewGuid();
 
         await service.UpsertAsync(new[]
         {
             new RewardProductUpsertRequest
             {
+                TenantId = tenantId,
                 RewardVendor = "VendorA",
                 Sku = "SKU-1",
                 Name = "Gift Card",
@@ -43,6 +45,7 @@ public class RewardCatalogServiceTests
         {
             new RewardProductUpsertRequest
             {
+                TenantId = tenantId,
                 RewardVendor = "VendorA",
                 Sku = "SKU-1",
                 Name = "Gift Card Updated",
@@ -70,11 +73,14 @@ public class RewardCatalogServiceTests
         await TestDbContextFactory.EnsureRewardCatalogSchemaAsync(catalogDb);
 
         var service = new RewardCatalogService(catalogDb);
+        var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
 
         await service.UpsertAsync(new[]
         {
             new RewardProductUpsertRequest
             {
+                TenantId = tenantId,
                 RewardVendor = "VendorA",
                 Sku = "SKU-1",
                 Name = "Gift Card",
@@ -82,18 +88,62 @@ public class RewardCatalogServiceTests
             },
             new RewardProductUpsertRequest
             {
+                TenantId = tenantId,
                 RewardVendor = "VendorB",
                 Sku = "SKU-2",
                 Name = "Promo Pack",
                 PointsCost = 200
+            },
+            new RewardProductUpsertRequest
+            {
+                TenantId = otherTenantId,
+                RewardVendor = "VendorB",
+                Sku = "SKU-9",
+                Name = "Promo Pack Other",
+                PointsCost = 50
             }
         });
 
-        var byVendor = await service.SearchAsync("VendorB");
+        var byVendor = await service.SearchAsync("VendorB", tenantId);
         Assert.Single(byVendor);
 
         var empty = await service.SearchAsync(" ");
         Assert.Empty(empty);
+    }
+
+    [Fact]
+    public async Task ListAsync_FiltersByTenant()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var catalogDb = TestDbContextFactory.CreateRewardCatalog(db.ConnectionString);
+        await TestDbContextFactory.EnsureRewardCatalogSchemaAsync(catalogDb);
+
+        var service = new RewardCatalogService(catalogDb);
+        var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
+
+        await service.UpsertAsync(new[]
+        {
+            new RewardProductUpsertRequest
+            {
+                TenantId = tenantId,
+                RewardVendor = "VendorA",
+                Sku = "SKU-1",
+                Name = "Gift Card",
+                PointsCost = 100
+            },
+            new RewardProductUpsertRequest
+            {
+                TenantId = otherTenantId,
+                RewardVendor = "VendorA",
+                Sku = "SKU-2",
+                Name = "Gift Card Other",
+                PointsCost = 80
+            }
+        });
+
+        var byTenant = await service.ListAsync(tenantId);
+        Assert.Single(byTenant);
     }
 
     [Fact]
@@ -105,9 +155,11 @@ public class RewardCatalogServiceTests
 
         var service = new RewardCatalogService(catalogDb);
         var productId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
         catalogDb.RewardProducts.Add(new RewardProduct
         {
             Id = productId,
+            TenantId = tenantId,
             RewardVendor = "VendorA",
             Sku = "SKU-1",
             Name = "Gift Card",
@@ -143,12 +195,28 @@ public class RewardCatalogServiceTests
         await TestDbContextFactory.EnsureRewardCatalogSchemaAsync(catalogDb);
 
         var service = new RewardCatalogService(catalogDb);
+        var tenantId = Guid.NewGuid();
+
+        var exTenant = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UpsertAsync(new[]
+            {
+                new RewardProductUpsertRequest
+                {
+                    TenantId = Guid.Empty,
+                    RewardVendor = "Vendor",
+                    Sku = "SKU",
+                    Name = "Name",
+                    PointsCost = 1
+                }
+            }));
+        Assert.Contains("TenantId is required", exTenant.Message);
 
         var exVendor = await Assert.ThrowsAsync<ArgumentException>(() =>
             service.UpsertAsync(new[]
             {
                 new RewardProductUpsertRequest
                 {
+                    TenantId = tenantId,
                     RewardVendor = " ",
                     Sku = "SKU",
                     Name = "Name",
@@ -162,6 +230,7 @@ public class RewardCatalogServiceTests
             {
                 new RewardProductUpsertRequest
                 {
+                    TenantId = tenantId,
                     RewardVendor = "Vendor",
                     Sku = " ",
                     Name = "Name",
@@ -175,6 +244,7 @@ public class RewardCatalogServiceTests
             {
                 new RewardProductUpsertRequest
                 {
+                    TenantId = tenantId,
                     RewardVendor = "Vendor",
                     Sku = "SKU",
                     Name = " ",
@@ -188,6 +258,7 @@ public class RewardCatalogServiceTests
             {
                 new RewardProductUpsertRequest
                 {
+                    TenantId = tenantId,
                     RewardVendor = "Vendor",
                     Sku = "SKU",
                     Name = "Name",
@@ -201,6 +272,7 @@ public class RewardCatalogServiceTests
             {
                 new RewardProductUpsertRequest
                 {
+                    TenantId = tenantId,
                     RewardVendor = "Vendor",
                     Sku = "SKU",
                     Name = "Name",

@@ -47,6 +47,7 @@ public class RewardOrderServiceTests
         {
             new RewardProductUpsertRequest
             {
+                TenantId = tenant.Id,
                 RewardVendor = "VendorA",
                 Sku = "SKU-1",
                 Name = "Gift Card",
@@ -128,6 +129,7 @@ public class RewardOrderServiceTests
         {
             new RewardProductUpsertRequest
             {
+                TenantId = tenant.Id,
                 RewardVendor = "VendorA",
                 Sku = "SKU-1",
                 Name = "Gift Card",
@@ -192,6 +194,7 @@ public class RewardOrderServiceTests
         {
             new RewardProductUpsertRequest
             {
+                TenantId = tenant.Id,
                 RewardVendor = "VendorA",
                 Sku = "SKU-1",
                 Name = "Gift Card",

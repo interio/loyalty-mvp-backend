@@ -24,6 +24,7 @@ public class RewardCatalogDbContext : DbContext
         modelBuilder.Entity<RewardProduct>(e =>
         {
             e.HasKey(x => x.Id);
+            e.Property(x => x.TenantId).IsRequired();
             e.Property(x => x.RewardVendor).IsRequired().HasMaxLength(200);
             e.Property(x => x.Sku).IsRequired().HasMaxLength(200);
             e.Property(x => x.Gtin).HasMaxLength(50);
@@ -36,10 +37,10 @@ public class RewardCatalogDbContext : DbContext
                     v => JsonSerializer.Deserialize<JsonObject>(v, new JsonSerializerOptions())!)
                 .Metadata.SetValueComparer(comparer);
 
-            e.HasIndex(x => new { x.RewardVendor, x.Sku, x.Gtin })
+            e.HasIndex(x => new { x.TenantId, x.RewardVendor, x.Sku, x.Gtin })
                 .IsUnique()
                 .HasFilter("\"Gtin\" IS NOT NULL");
-            e.HasIndex(x => new { x.RewardVendor, x.Sku })
+            e.HasIndex(x => new { x.TenantId, x.RewardVendor, x.Sku })
                 .IsUnique()
                 .HasFilter("\"Gtin\" IS NULL");
             e.ToTable("RewardProducts");

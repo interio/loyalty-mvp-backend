@@ -32,6 +32,7 @@ public static class RewardCatalogCsvParser
 
             results.Add(new RewardProductUpsertRequest
             {
+                TenantId = GetRequiredGuid(row, "tenantid", "tenant_id"),
                 RewardVendor = GetRequired(row, "rewardvendor", "vendor"),
                 Sku = GetRequired(row, "sku"),
                 Name = GetRequired(row, "name"),
@@ -67,6 +68,14 @@ public static class RewardCatalogCsvParser
         var value = GetRequired(row, keys);
         if (!int.TryParse(value, out var parsed))
             throw new ArgumentException($"Invalid integer for {string.Join("/", keys)}: {value}");
+        return parsed;
+    }
+
+    private static Guid GetRequiredGuid(Dictionary<string, string?> row, params string[] keys)
+    {
+        var value = GetRequired(row, keys);
+        if (!Guid.TryParse(value, out var parsed))
+            throw new ArgumentException($"Invalid guid for {string.Join("/", keys)}: {value}");
         return parsed;
     }
 

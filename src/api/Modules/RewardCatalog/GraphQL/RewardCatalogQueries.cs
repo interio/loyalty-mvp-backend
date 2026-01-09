@@ -9,11 +9,11 @@ namespace Loyalty.Api.Modules.RewardCatalog.GraphQL;
 [ExtendObjectType(OperationTypeNames.Query)]
 public class RewardCatalogQueries
 {
-    public Task<List<RewardProduct>> RewardProducts([Service] RewardCatalogService catalog) =>
-        SafeExecute(() => catalog.ListAsync());
+    public Task<List<RewardProduct>> RewardProducts(Guid? tenantId, [Service] RewardCatalogService catalog) =>
+        SafeExecute(() => catalog.ListAsync(tenantId));
 
-    public Task<List<RewardProduct>> RewardProductsSearch(string search, [Service] RewardCatalogService catalog) =>
-        SafeExecute(() => catalog.SearchAsync(search));
+    public Task<List<RewardProduct>> RewardProductsSearch(string search, Guid? tenantId, [Service] RewardCatalogService catalog) =>
+        SafeExecute(() => catalog.SearchAsync(search, tenantId));
 
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {

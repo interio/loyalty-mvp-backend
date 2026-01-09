@@ -12,30 +12,40 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
 
     public RewardCatalogService(RewardCatalogDbContext db) => _db = db;
 
-    public Task<List<RewardProduct>> ListAsync(int take = 500, CancellationToken ct = default) =>
-        _db.RewardProducts
-           .AsNoTracking()
-           .OrderBy(p => p.Name)
-           .Take(take)
-           .ToListAsync(ct);
+    public Task<List<RewardProduct>> ListAsync(Guid? tenantId = null, int take = 500, CancellationToken ct = default)
+    {
+        var query = _db.RewardProducts.AsNoTracking();
+        if (tenantId.HasValue)
+            query = query.Where(p => p.TenantId == tenantId.Value);
 
-    public Task<List<RewardProduct>> SearchAsync(string search, int take = 200, CancellationToken ct = default)
+        return query
+            .OrderBy(p => p.Name)
+            .Take(take)
+            .ToListAsync(ct);
+    }
+
+    public Task<List<RewardProduct>> SearchAsync(string search, Guid? tenantId = null, int take = 200, CancellationToken ct = default)
     {
         var term = search?.Trim();
         if (string.IsNullOrWhiteSpace(term)) return Task.FromResult(new List<RewardProduct>());
 
         var pattern = $"%{term}%";
 
-        return _db.RewardProducts
+        var query = _db.RewardProducts
            .AsNoTracking()
            .Where(p =>
                 EF.Functions.ILike(p.Name, pattern) ||
                 EF.Functions.ILike(p.Sku, pattern) ||
                 (p.Gtin != null && EF.Functions.ILike(p.Gtin, pattern)) ||
-                EF.Functions.ILike(p.RewardVendor, pattern))
-           .OrderBy(p => p.Name)
-           .Take(take)
-           .ToListAsync(ct);
+                EF.Functions.ILike(p.RewardVendor, pattern));
+
+        if (tenantId.HasValue)
+            query = query.Where(p => p.TenantId == tenantId.Value);
+
+        return query
+            .OrderBy(p => p.Name)
+            .Take(take)
+            .ToListAsync(ct);
     }
 
     public async Task UpsertAsync(IEnumerable<RewardProductUpsertRequest> requests, CancellationToken ct = default)
@@ -87,7 +97,7 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
         var trimmedGtin = string.IsNullOrWhiteSpace(req.Gtin) ? null : req.Gtin.Trim();
 
         var query = _db.RewardProducts
-            .Where(p => p.RewardVendor == trimmedVendor && p.Sku == trimmedSku);
+            .Where(p => p.TenantId == req.TenantId && p.RewardVendor == trimmedVendor && p.Sku == trimmedSku);
 
         if (!string.IsNullOrWhiteSpace(trimmedGtin))
             query = query.Where(p => p.Gtin == trimmedGtin);
@@ -98,6 +108,7 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
         {
             product = new RewardProduct
             {
+                TenantId = req.TenantId,
                 RewardVendor = trimmedVendor,
                 Sku = trimmedSku,
                 Gtin = trimmedGtin,
@@ -144,6 +155,7 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
 
     private static void Validate(RewardProductUpsertRequest req)
     {
+        if (req.TenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
         if (string.IsNullOrWhiteSpace(req.RewardVendor)) throw new ArgumentException("RewardVendor is required.");
         if (string.IsNullOrWhiteSpace(req.Sku)) throw new ArgumentException("Sku is required.");
         if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("Name is required.");
