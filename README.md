@@ -13,6 +13,8 @@ This project is a modular monolith designed to be split into microservices later
 - `src/api/Modules/LoyaltyLedger` — points accounts and transactions, GraphQL resolvers, LedgerDbContext.
 - `src/api/Modules/RulesEngine` — inbound invoices + rules; REST controller; IntegrationDbContext.
 - `src/api/Modules/Products` — product catalog for loyalty rules; REST + GraphQL; ProductsDbContext.
+- `src/api/Modules/RewardCatalog` — reward products + inventory snapshots; REST + GraphQL; RewardCatalogDbContext.
+- `src/api/Modules/RewardOrders` — reward redemption orders; REST + GraphQL; RewardOrdersDbContext.
 - GraphQL composition lives in `Program.cs` using module extensions.
 
 ## High-level architecture
@@ -21,6 +23,8 @@ This project is a modular monolith designed to be split into microservices later
 - **LoyaltyLedger**: immutable points transactions + cached balance.
 - **RulesEngine**: ingests invoices, applies DB-backed rules, posts ledger entries idempotently (async worker).
 - **Products**: stores product master data for rules evaluation.
+- **RewardCatalog**: stores reward vendor products and inventory snapshots.
+- **RewardOrders**: stores customer redemption orders and triggers ledger redemptions.
 - **GraphQL**: transport layer, delegates to module services.
 - DbContexts per module; migrations per context under each module folder.
 - Idempotency: ledger correlation IDs; RulesEngine invoice upsert keyed by tenantId+invoiceId.
@@ -40,6 +44,8 @@ dotnet ef database update --context CustomersDbContext
 dotnet ef database update --context LedgerDbContext
 dotnet ef database update --context IntegrationDbContext
 dotnet ef database update --context ProductsDbContext
+dotnet ef database update --context RewardCatalogDbContext
+dotnet ef database update --context RewardOrdersDbContext
 ```
 
 ## Run the API
@@ -58,6 +64,8 @@ By default listens on `http://localhost:8080` (or URLS override). In logs, look 
 - REST (RulesEngine): `POST /api/v1/integration/invoices/apply`
   - Body: see `InvoiceUpsertRequest` in `src/api/Modules/RulesEngine/Application/Invoices/InvoiceUpsertRequest.cs`
 - REST (Products): `POST /api/v1/products/upsert`
+- REST (RewardCatalog): `POST /api/v1/rewards/catalog/upsert`, `POST /api/v1/rewards/catalog/upload` (CSV)
+- RewardOrders are available via GraphQL mutations/queries (see `RewardOrderMutations` and `RewardOrderQueries`).
 
 ## Tests
 ```
@@ -73,6 +81,8 @@ dotnet ef migrations add <Name> --context TenantsDbContext --output-dir Modules/
 dotnet ef migrations add <Name> --context CustomersDbContext --output-dir Modules/Customers/Migrations
 dotnet ef migrations add <Name> --context LedgerDbContext --output-dir Modules/LoyaltyLedger/Migrations
 dotnet ef migrations add <Name> --context IntegrationDbContext --output-dir Modules/RulesEngine/Migrations
+dotnet ef migrations add <Name> --context RewardCatalogDbContext --output-dir Modules/RewardCatalog/Migrations
+dotnet ef migrations add <Name> --context RewardOrdersDbContext --output-dir Modules/RewardOrders/Migrations
 ```
 
 ## Notes / TODOs

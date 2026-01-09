@@ -10,8 +10,11 @@ public sealed class LedgerDbContextFactory : IDesignTimeDbContextFactory<LedgerD
     {
         var optionsBuilder = new DbContextOptionsBuilder<LedgerDbContext>();
 
-        var cs = Environment.GetEnvironmentVariable("ConnectionStrings__Default")
-                 ?? "Host=postgres;Port=5432;Database=loyalty;Username=loyalty;Password=loyalty";
+        var cs = Environment.GetEnvironmentVariable("ConnectionStrings__Default");
+        if (string.IsNullOrWhiteSpace(cs))
+        {
+            throw new InvalidOperationException("Missing ConnectionStrings__Default environment variable.");
+        }
 
         optionsBuilder.UseNpgsql(cs);
         return new LedgerDbContext(optionsBuilder.Options);

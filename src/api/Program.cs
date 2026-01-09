@@ -4,6 +4,10 @@ using Loyalty.Api.Modules.LoyaltyLedger.Application;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Products.Application;
 using Loyalty.Api.Modules.Products.Infrastructure.Persistence;
+using Loyalty.Api.Modules.RewardCatalog.Application;
+using Loyalty.Api.Modules.RewardCatalog.Infrastructure.Persistence;
+using Loyalty.Api.Modules.RewardOrders.Application;
+using Loyalty.Api.Modules.RewardOrders.Infrastructure.Persistence;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
@@ -28,6 +32,9 @@ builder.Services
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.Products.GraphQL.ProductQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.RewardCatalog.GraphQL.RewardCatalogQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.RewardOrders.GraphQL.RewardOrderQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.RewardOrders.GraphQL.RewardOrderMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.PointsRuleQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.InvoiceQueries>();
 builder.Services.AddControllers();
@@ -67,6 +74,8 @@ builder.Services.AddDbContext<CustomersDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddDbContext<LedgerDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddDbContext<IntegrationDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddDbContext<ProductsDbContext>(opt => opt.UseNpgsql(cs));
+builder.Services.AddDbContext<RewardCatalogDbContext>(opt => opt.UseNpgsql(cs));
+builder.Services.AddDbContext<RewardOrdersDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ICustomerLookup>(sp => (CustomerService)sp.GetRequiredService<ICustomerService>());
@@ -76,6 +85,11 @@ builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IInvoicePointsRuleProvider, DatabaseInvoicePointsRuleProvider>();
 builder.Services.AddScoped<PointsPostingService>();
 builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<RewardCatalogService>();
+builder.Services.AddScoped<IRewardCatalogLookup>(sp => sp.GetRequiredService<RewardCatalogService>());
+builder.Services.AddScoped<IRewardInventoryService>(sp => sp.GetRequiredService<RewardCatalogService>());
+builder.Services.AddScoped<IRewardOrderDispatcher, StubRewardOrderDispatcher>();
+builder.Services.AddScoped<RewardOrderService>();
 builder.Services.AddScoped<PointsRuleService>();
 builder.Services.Configure<Loyalty.Api.Modules.RulesEngine.Application.InvoiceProcessorOptions>(
     builder.Configuration.GetSection("InvoiceProcessor"));
