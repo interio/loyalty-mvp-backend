@@ -33,6 +33,8 @@ builder.Services
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.Products.GraphQL.ProductQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.RewardCatalog.GraphQL.RewardCatalogQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.RewardCatalog.GraphQL.RewardCatalogMutations>()
+  .AddTypeExtension<Loyalty.Api.Modules.RewardCatalog.GraphQL.RewardProductExtensions>()
   .AddTypeExtension<Loyalty.Api.Modules.RewardOrders.GraphQL.RewardOrderQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.RewardOrders.GraphQL.RewardOrderMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.PointsRuleQueries>()

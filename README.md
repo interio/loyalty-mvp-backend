@@ -60,6 +60,7 @@ By default listens on `http://localhost:8080` (or URLS override). In logs, look 
     - Tenants: `createTenant`, `tenants`
     - Customers/Users: `createCustomer`, `createUser`, `customer`, `customersByTenant`, `usersByCustomer`
     - Ledger: `redeemPoints`, `manualAdjustPoints`, `customerTransactions`
+    - RewardCatalog: `rewardProducts`, `rewardProductsSearch`, `rewardProduct`, `upsertRewardProduct`, `deleteRewardProduct`
     - RulesEngine: `pointsRulesByTenant`, `invoicesByTenant`
 - REST (RulesEngine): `POST /api/v1/integration/invoices/apply`
   - Body: see `InvoiceUpsertRequest` in `src/api/Modules/RulesEngine/Application/Invoices/InvoiceUpsertRequest.cs`

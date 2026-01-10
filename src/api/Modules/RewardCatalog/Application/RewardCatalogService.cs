@@ -58,6 +58,26 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task DeleteAsync(Guid tenantId, Guid rewardProductId, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
+
+        var product = await _db.RewardProducts
+            .FirstOrDefaultAsync(p => p.Id == rewardProductId && p.TenantId == tenantId, ct);
+
+        if (product is null)
+            throw new System.Collections.Generic.KeyNotFoundException("Reward product not found for tenant.");
+
+        var inventory = await _db.RewardInventories
+            .FirstOrDefaultAsync(i => i.RewardProductId == rewardProductId, ct);
+
+        if (inventory != null)
+            _db.RewardInventories.Remove(inventory);
+
+        _db.RewardProducts.Remove(product);
+        await _db.SaveChangesAsync(ct);
+    }
+
     public Task<List<RewardProduct>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default) =>
         _db.RewardProducts
            .Where(p => ids.Contains(p.Id))
@@ -183,4 +203,5 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
         }
         return json;
     }
+
 }
