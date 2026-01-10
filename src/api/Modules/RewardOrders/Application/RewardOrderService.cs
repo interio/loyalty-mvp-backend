@@ -52,6 +52,31 @@ public class RewardOrderService
             .Take(take)
             .ToListAsync(ct);
 
+    public Task<RewardOrder?> GetByIdAsync(Guid tenantId, Guid orderId, CancellationToken ct = default) =>
+        _db.RewardOrders
+            .AsNoTracking()
+            .Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.Id == orderId, ct);
+
+    public async Task<RewardOrder> UpdateStatusAsync(Guid tenantId, Guid orderId, RewardOrderStatus status, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
+
+        var order = await _db.RewardOrders
+            .Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.Id == orderId, ct);
+
+        if (order is null)
+            throw new System.Collections.Generic.KeyNotFoundException("Reward order not found for tenant.");
+
+        if (order.Status == status) return order;
+
+        order.Status = status;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return order;
+    }
+
     public async Task<RewardOrder> PlaceOrderAsync(PlaceRewardOrderRequest request, bool placedOnBehalf, CancellationToken ct = default)
     {
         Validate(request);

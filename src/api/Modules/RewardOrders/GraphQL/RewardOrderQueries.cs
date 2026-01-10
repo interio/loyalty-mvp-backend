@@ -15,6 +15,9 @@ public class RewardOrderQueries
     public Task<List<RewardOrder>> RewardOrdersByTenant(Guid tenantId, [Service] RewardOrderService orders) =>
         SafeExecute(() => orders.ListByTenantAsync(tenantId));
 
+    public Task<RewardOrder?> RewardOrder(Guid tenantId, Guid id, [Service] RewardOrderService orders) =>
+        SafeExecute(() => orders.GetByIdAsync(tenantId, id));
+
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {
         try

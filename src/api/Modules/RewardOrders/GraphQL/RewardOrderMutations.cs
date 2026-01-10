@@ -21,6 +21,9 @@ public class RewardOrderMutations
             Items = request.Items
         }, true));
 
+    public Task<RewardOrder> UpdateRewardOrderStatus(UpdateRewardOrderStatusInput input, [Service] RewardOrderService orders) =>
+        SafeExecute(() => orders.UpdateStatusAsync(input.TenantId, input.OrderId, ParseStatus(input.Status)));
+
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {
         try
@@ -32,4 +35,22 @@ public class RewardOrderMutations
             throw new GraphQLException(ex.Message);
         }
     }
+}
+
+public record UpdateRewardOrderStatusInput(Guid TenantId, Guid OrderId, string Status);
+
+internal static RewardOrderStatus ParseStatus(string status)
+{
+    if (string.IsNullOrWhiteSpace(status))
+        throw new ArgumentException("Status is required.");
+
+    var normalized = status.Trim();
+    if (Enum.TryParse<RewardOrderStatus>(normalized, ignoreCase: true, out var parsed))
+        return parsed;
+
+    var stripped = normalized.Replace("_", string.Empty).Replace("-", string.Empty);
+    if (Enum.TryParse<RewardOrderStatus>(stripped, ignoreCase: true, out parsed))
+        return parsed;
+
+    throw new ArgumentException($"Unknown status '{status}'.");
 }
