@@ -4,7 +4,7 @@ This project is a modular monolith designed to be split into microservices later
 
 ## Requirements
 - .NET 8 SDK
-- PostgreSQL (default connection: `Host=postgres;Port=5432;Database=loyalty;Username=loyalty;Password=loyalty`)
+- PostgreSQL (set `ConnectionStrings__Default`; Docker uses `Host=postgres;Port=5432;Database=loyalty;Username=loyalty;Password=loyalty`)
 - Node/PNPM not required (GraphQL served by Hot Chocolate in ASP.NET Core)
 
 ## Module structure
@@ -30,7 +30,7 @@ This project is a modular monolith designed to be split into microservices later
 - Idempotency: ledger correlation IDs; RulesEngine invoice upsert keyed by tenantId+invoiceId.
 
 ## Configure connection string
-Set `ConnectionStrings__Default` env var or edit `src/api/appsettings.Development.json`. Example:
+Set `ConnectionStrings__Default` env var (required; `appsettings*.json` do not include it by default). Example:
 ```
 export ConnectionStrings__Default="Host=postgres;Port=5432;Database=loyalty;Username=loyalty;Password=loyalty"
 ```
@@ -60,9 +60,11 @@ By default listens on `http://localhost:8080` (or URLS override). In logs, look 
     - Tenants: `createTenant`, `tenants`
     - Customers/Users: `createCustomer`, `createUser`, `customer`, `customersByTenant`, `usersByCustomer`
     - Ledger: `redeemPoints`, `manualAdjustPoints`, `customerTransactions`
-    - RulesEngine: `pointsRulesByTenant`
+    - RulesEngine: `pointsRulesByTenant`, `invoicesByTenant`
 - REST (RulesEngine): `POST /api/v1/integration/invoices/apply`
   - Body: see `InvoiceUpsertRequest` in `src/api/Modules/RulesEngine/Application/Invoices/InvoiceUpsertRequest.cs`
+  - Returns `202 Accepted` with a `correlationId` (processing is async via background worker).
+- REST (RulesEngine rules): `POST /api/v1/rules/points/upsert`, `PUT /api/v1/rules/points/{id}` (tenantId required in body), `DELETE /api/v1/rules/points/{id}?tenantId=...`
 - REST (Products): `POST /api/v1/products/upsert`
 - REST (RewardCatalog): `POST /api/v1/rewards/catalog/upsert`, `POST /api/v1/rewards/catalog/upload` (CSV)
 - RewardOrders are available via GraphQL mutations/queries (see `RewardOrderMutations` and `RewardOrderQueries`).

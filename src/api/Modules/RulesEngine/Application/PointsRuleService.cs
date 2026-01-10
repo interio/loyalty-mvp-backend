@@ -20,8 +20,8 @@ public class PointsRuleService
            .ThenBy(r => r.CreatedAt)
            .ToListAsync(ct);
 
-    public Task<bool> ExistsAsync(Guid id, CancellationToken ct = default) =>
-        _db.PointsRules.AnyAsync(r => r.Id == id, ct);
+    public Task<bool> ExistsAsync(Guid id, Guid tenantId, CancellationToken ct = default) =>
+        _db.PointsRules.AnyAsync(r => r.Id == id && r.TenantId == tenantId, ct);
 
     public async Task UpsertAsync(IEnumerable<PointsRuleUpsertRequest> requests, CancellationToken ct = default)
     {
@@ -53,6 +53,9 @@ public class PointsRuleService
             }
             else
             {
+                if (rule.TenantId != req.TenantId)
+                    throw new ArgumentException("Rule does not belong to tenant.");
+
                 rule.UpdatedAt = DateTimeOffset.UtcNow;
                 rule.RuleVersion += 1;
             }
@@ -69,11 +72,13 @@ public class PointsRuleService
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteAsync(Guid id, Guid tenantId, CancellationToken ct = default)
     {
-        var rule = await _db.PointsRules.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+
+        var rule = await _db.PointsRules.FirstOrDefaultAsync(r => r.Id == id && r.TenantId == tenantId, ct);
         if (rule is null)
-            throw new System.Collections.Generic.KeyNotFoundException("Rule not found.");
+            throw new System.Collections.Generic.KeyNotFoundException("Rule not found for tenant.");
 
         _db.PointsRules.Remove(rule);
         await _db.SaveChangesAsync(ct);

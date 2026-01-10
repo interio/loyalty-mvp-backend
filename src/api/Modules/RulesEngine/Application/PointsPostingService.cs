@@ -9,6 +9,7 @@ using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Loyalty.Api.Modules.RulesEngine.Application;
 
@@ -200,7 +201,18 @@ public class PointsPostingService
                 : null
         });
 
-        await _ledgerDb.SaveChangesAsync(ct);
+        try
+        {
+            await _ledgerDb.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            _ledgerDb.ChangeTracker.Clear();
+            var existingAccount = await _ledgerDb.PointsAccounts
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.CustomerId == customer.Id, ct);
+            return new InvoiceUpsertResponse(correlationId, 0, true, existingAccount?.Balance ?? 0);
+        }
 
         return new InvoiceUpsertResponse(correlationId, points, false, account.Balance);
     }
@@ -222,6 +234,22 @@ public class PointsPostingService
             if (line.NetAmount < 0)
                 throw new ArgumentException("line.netAmount must be >= 0.");
         }
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        Exception? current = ex;
+        while (current != null)
+        {
+            if (current is PostgresException pg &&
+                pg.SqlState == PostgresErrorCodes.UniqueViolation)
+            {
+                return true;
+            }
+            current = current.InnerException;
+        }
+
+        return false;
     }
 
     private async Task<(int total, List<AppliedRuleSnapshot> appliedRules)> CalculatePointsAsync(

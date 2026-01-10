@@ -69,62 +69,74 @@ public class RewardOrderService
         if (products.Count != productIds.Count)
             throw new ArgumentException("One or more reward products not found.");
 
-        foreach (var line in items)
-        {
-            await _inventory.ReserveAsync(line.RewardProductId, line.Quantity, ct);
-        }
-
-        var order = new RewardOrder
-        {
-            TenantId = request.TenantId,
-            CustomerId = request.CustomerId,
-            ActorUserId = request.ActorUserId,
-            Status = RewardOrderStatus.PendingDispatch,
-            PlacedOnBehalf = placedOnBehalf,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
-
-        foreach (var line in items)
-        {
-            var product = products.Single(p => p.Id == line.RewardProductId);
-            var totalPoints = product.PointsCost * line.Quantity;
-            order.TotalPoints += totalPoints;
-            order.Items.Add(new RewardOrderItem
-            {
-                RewardProductId = product.Id,
-                RewardVendor = product.RewardVendor,
-                Sku = product.Sku,
-                Name = product.Name,
-                Quantity = line.Quantity,
-                PointsCost = product.PointsCost,
-                TotalPoints = totalPoints
-            });
-        }
-
-        _db.RewardOrders.Add(order);
-        await _db.SaveChangesAsync(ct);
-
+        var reserved = new List<RewardOrderLineRequest>();
+        var releaseAttempted = false;
         try
         {
-            await _ledger.RedeemAsync(
-                new RedeemPointsCommand(order.CustomerId, order.ActorUserId, order.TotalPoints, PointsReasons.RewardRedeem, order.Id.ToString()),
-                ct);
+            foreach (var line in items)
+            {
+                await _inventory.ReserveAsync(line.RewardProductId, line.Quantity, ct);
+                reserved.Add(line);
+            }
 
-            await _dispatcher.EnqueueAsync(order, ct);
-            return order;
-        }
-        catch
-        {
-            order.Status = RewardOrderStatus.Failed;
-            order.UpdatedAt = DateTimeOffset.UtcNow;
-            await _db.SaveChangesAsync(ct);
+            var order = new RewardOrder
+            {
+                TenantId = request.TenantId,
+                CustomerId = request.CustomerId,
+                ActorUserId = request.ActorUserId,
+                Status = RewardOrderStatus.PendingDispatch,
+                PlacedOnBehalf = placedOnBehalf,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
 
             foreach (var line in items)
             {
-                await _inventory.ReleaseAsync(line.RewardProductId, line.Quantity, ct);
+                var product = products.Single(p => p.Id == line.RewardProductId);
+                var totalPoints = product.PointsCost * line.Quantity;
+                order.TotalPoints += totalPoints;
+                order.Items.Add(new RewardOrderItem
+                {
+                    RewardProductId = product.Id,
+                    RewardVendor = product.RewardVendor,
+                    Sku = product.Sku,
+                    Name = product.Name,
+                    Quantity = line.Quantity,
+                    PointsCost = product.PointsCost,
+                    TotalPoints = totalPoints
+                });
             }
 
+            _db.RewardOrders.Add(order);
+            await _db.SaveChangesAsync(ct);
+
+            try
+            {
+                await _ledger.RedeemAsync(
+                    new RedeemPointsCommand(order.CustomerId, order.ActorUserId, order.TotalPoints, PointsReasons.RewardRedeem, order.Id.ToString()),
+                    ct);
+
+                await _dispatcher.EnqueueAsync(order, ct);
+                return order;
+            }
+            catch (Exception ex)
+            {
+                order.Status = RewardOrderStatus.Failed;
+                order.UpdatedAt = DateTimeOffset.UtcNow;
+                await _db.SaveChangesAsync(ct);
+
+                releaseAttempted = true;
+                await ReleaseReservedAsync(reserved, ct, ex);
+                throw;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!releaseAttempted)
+            {
+                releaseAttempted = true;
+                await ReleaseReservedAsync(reserved, ct, ex);
+            }
             throw;
         }
     }
@@ -136,5 +148,27 @@ public class RewardOrderService
         if (request.ActorUserId == Guid.Empty) throw new ArgumentException("ActorUserId is required.");
         if (request.Items.Count == 0) throw new ArgumentException("At least one item is required.");
         if (request.Items.Any(i => i.Quantity <= 0)) throw new ArgumentException("Quantity must be greater than 0.");
+    }
+
+    private async Task ReleaseReservedAsync(List<RewardOrderLineRequest> reserved, CancellationToken ct, Exception? original)
+    {
+        if (reserved.Count == 0) return;
+        try
+        {
+            foreach (var line in reserved)
+            {
+                await _inventory.ReleaseAsync(line.RewardProductId, line.Quantity, ct);
+            }
+        }
+        catch (Exception releaseEx)
+        {
+            if (original != null)
+                throw new AggregateException(original, releaseEx);
+            throw;
+        }
+        finally
+        {
+            reserved.Clear();
+        }
     }
 }

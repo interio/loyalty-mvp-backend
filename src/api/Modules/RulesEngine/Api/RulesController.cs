@@ -50,7 +50,10 @@ public class RulesController : ControllerBase
     {
         try
         {
-            if (!await _service.ExistsAsync(id, ct))
+            if (request.TenantId == Guid.Empty)
+                return BadRequest("tenantId is required.");
+
+            if (!await _service.ExistsAsync(id, request.TenantId, ct))
                 return NotFound("Rule not found.");
 
             request.Id = id;
@@ -78,12 +81,19 @@ public class RulesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Delete(Guid id, [FromQuery] Guid tenantId, CancellationToken ct)
     {
         try
         {
-            await _service.DeleteAsync(id, ct);
+            if (tenantId == Guid.Empty)
+                return BadRequest("tenantId is required.");
+
+            await _service.DeleteAsync(id, tenantId, ct);
             return Ok();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
         }
         catch (System.Collections.Generic.KeyNotFoundException ex)
         {
