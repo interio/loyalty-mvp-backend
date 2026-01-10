@@ -65,7 +65,8 @@ By default listens on `http://localhost:8080` (or URLS override). In logs, look 
 - REST (RulesEngine): `POST /api/v1/integration/invoices/apply`
   - Body: see `InvoiceUpsertRequest` in `src/api/Modules/RulesEngine/Application/Invoices/InvoiceUpsertRequest.cs`
   - Returns `202 Accepted` with a `correlationId` (processing is async via background worker).
-- REST (RulesEngine rules): `POST /api/v1/rules/points/upsert`, `PUT /api/v1/rules/points/{id}` (tenantId required in body), `DELETE /api/v1/rules/points/{id}?tenantId=...`
+- REST (RulesEngine rules): `POST /api/v1/rules/points/upsert` (create only), `PUT /api/v1/rules/points/{id}` (tenantId + active only), `DELETE /api/v1/rules/points/{id}?tenantId=...`
+  - Rules create payload requires `name`, `ruleType`, and `conditions`.
 - REST (Products): `POST /api/v1/products/upsert`
 - REST (RewardCatalog): `POST /api/v1/rewards/catalog/upsert`, `POST /api/v1/rewards/catalog/upload` (CSV)
 - RewardOrders are available via GraphQL mutations/queries (see `RewardOrderMutations` and `RewardOrderQueries`).

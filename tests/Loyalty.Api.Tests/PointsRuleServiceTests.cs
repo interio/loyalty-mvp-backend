@@ -34,10 +34,23 @@ public class PointsRuleServiceTests
                 new PointsRuleUpsertRequest
                 {
                     TenantId = Guid.Empty,
+                    Name = "Rule 1",
                     RuleType = "spend"
                 }
             }));
         Assert.Contains("tenantId is required", exTenant.Message);
+
+        var exName = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UpsertAsync(new[]
+            {
+                new PointsRuleUpsertRequest
+                {
+                    TenantId = Guid.NewGuid(),
+                    Name = " ",
+                    RuleType = "spend"
+                }
+            }));
+        Assert.Contains("name is required", exName.Message);
 
         var exType = await Assert.ThrowsAsync<ArgumentException>(() =>
             service.UpsertAsync(new[]
@@ -45,6 +58,7 @@ public class PointsRuleServiceTests
                 new PointsRuleUpsertRequest
                 {
                     TenantId = Guid.NewGuid(),
+                    Name = "Rule 2",
                     RuleType = " "
                 }
             }));
@@ -52,7 +66,7 @@ public class PointsRuleServiceTests
     }
 
     [Fact]
-    public async Task UpsertAsync_CreateUpdateAndDelete()
+    public async Task UpsertAsync_CreateAndDelete()
     {
         await using var db = CreateContext();
         var service = new PointsRuleService(db);
@@ -61,6 +75,7 @@ public class PointsRuleServiceTests
         var request = new PointsRuleUpsertRequest
         {
             TenantId = tenantId,
+            Name = "Spend rule A",
             RuleType = "spend",
             Active = true,
             Priority = 1
@@ -71,20 +86,42 @@ public class PointsRuleServiceTests
         Assert.Equal(1, rule.RuleVersion);
 
         request.Id = rule.Id;
-        request.Priority = 2;
-        await service.UpsertAsync(new[] { request });
+        await Assert.ThrowsAsync<ArgumentException>(() => service.UpsertAsync(new[] { request }));
 
-        var updated = await db.PointsRules.FirstAsync();
-        Assert.Equal(2, updated.Priority);
-        Assert.Equal(2, updated.RuleVersion);
-
-        Assert.True(await service.ExistsAsync(rule.Id));
+        Assert.True(await service.ExistsAsync(rule.Id, tenantId));
 
         var list = await service.ListByTenantAsync(tenantId);
         Assert.Single(list);
 
-        await service.DeleteAsync(rule.Id);
-        Assert.False(await service.ExistsAsync(rule.Id));
+        await service.DeleteAsync(rule.Id, tenantId);
+        Assert.False(await service.ExistsAsync(rule.Id, tenantId));
+    }
+
+    [Fact]
+    public async Task SetActiveAsync_UpdatesRule()
+    {
+        await using var db = CreateContext();
+        var service = new PointsRuleService(db);
+
+        var tenantId = Guid.NewGuid();
+        await service.UpsertAsync(new[]
+        {
+            new PointsRuleUpsertRequest
+            {
+                TenantId = tenantId,
+                Name = "Spend rule A",
+                RuleType = "spend",
+                Active = true,
+                Priority = 1
+            }
+        });
+
+        var rule = await db.PointsRules.FirstAsync();
+        await service.SetActiveAsync(rule.Id, tenantId, false);
+
+        var updated = await db.PointsRules.FirstAsync();
+        Assert.False(updated.Active);
+        Assert.Equal(2, updated.RuleVersion);
     }
 
     [Fact]
@@ -94,6 +131,6 @@ public class PointsRuleServiceTests
         var service = new PointsRuleService(db);
 
         await Assert.ThrowsAsync<System.Collections.Generic.KeyNotFoundException>(() =>
-            service.DeleteAsync(Guid.NewGuid()));
+            service.DeleteAsync(Guid.NewGuid(), Guid.NewGuid()));
     }
 }

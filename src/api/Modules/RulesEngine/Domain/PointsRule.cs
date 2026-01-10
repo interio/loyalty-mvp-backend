@@ -10,6 +10,7 @@ public partial class PointsRule
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
+    public string Name { get; set; } = default!;
     public string RuleType { get; set; } = default!;
     [GraphQLIgnore] public JsonDocument Conditions { get; set; } = JsonDocument.Parse("{}");
     public bool Active { get; set; } = true;

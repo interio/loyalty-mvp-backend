@@ -55,6 +55,7 @@ public class IntegrationDbContext : DbContext
         modelBuilder.Entity<PointsRule>(e =>
         {
             e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
             e.Property(x => x.RuleType).IsRequired().HasMaxLength(100);
             e.Property(x => x.Priority).HasDefaultValue(0);
             e.Property(x => x.Active).HasDefaultValue(true);

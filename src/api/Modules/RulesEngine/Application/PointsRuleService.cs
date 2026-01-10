@@ -35,32 +35,23 @@ public class PointsRuleService
                 ? JsonDocument.Parse("{}")
                 : JsonSerializer.SerializeToDocument(req.Conditions);
 
-            PointsRule? rule = null;
             if (req.Id.HasValue)
             {
-                rule = await _db.PointsRules.FirstOrDefaultAsync(r => r.Id == req.Id.Value, ct);
+                var existing = await _db.PointsRules.FirstOrDefaultAsync(r => r.Id == req.Id.Value, ct);
+                if (existing is not null)
+                    throw new ArgumentException("Editing existing rules is not allowed. Create a new rule instead.");
             }
 
-            if (rule is null)
+            var rule = new PointsRule
             {
-                rule = new PointsRule
-                {
-                    Id = req.Id ?? Guid.NewGuid(),
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    RuleVersion = 1
-                };
-                _db.PointsRules.Add(rule);
-            }
-            else
-            {
-                if (rule.TenantId != req.TenantId)
-                    throw new ArgumentException("Rule does not belong to tenant.");
-
-                rule.UpdatedAt = DateTimeOffset.UtcNow;
-                rule.RuleVersion += 1;
-            }
+                Id = req.Id ?? Guid.NewGuid(),
+                CreatedAt = DateTimeOffset.UtcNow,
+                RuleVersion = 1
+            };
+            _db.PointsRules.Add(rule);
 
             rule.TenantId = req.TenantId;
+            rule.Name = req.Name.Trim();
             rule.RuleType = req.RuleType.Trim();
             rule.Active = req.Active;
             rule.Priority = req.Priority;
@@ -69,6 +60,22 @@ public class PointsRuleService
             rule.Conditions = conditions;
         }
 
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task SetActiveAsync(Guid id, Guid tenantId, bool active, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+
+        var rule = await _db.PointsRules.FirstOrDefaultAsync(r => r.Id == id && r.TenantId == tenantId, ct);
+        if (rule is null)
+            throw new System.Collections.Generic.KeyNotFoundException("Rule not found for tenant.");
+
+        if (rule.Active == active) return;
+
+        rule.Active = active;
+        rule.UpdatedAt = DateTimeOffset.UtcNow;
+        rule.RuleVersion += 1;
         await _db.SaveChangesAsync(ct);
     }
 
@@ -87,6 +94,7 @@ public class PointsRuleService
     private static void Validate(PointsRuleUpsertRequest req)
     {
         if (req.TenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+        if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("name is required.");
         if (string.IsNullOrWhiteSpace(req.RuleType)) throw new ArgumentException("ruleType is required.");
     }
 }
@@ -95,6 +103,7 @@ public class PointsRuleUpsertRequest
 {
     public Guid? Id { get; set; }
     public Guid TenantId { get; set; }
+    public string Name { get; set; } = default!;
     public string RuleType { get; set; } = default!;
     public Dictionary<string, object?>? Conditions { get; set; }
     public bool Active { get; set; } = true;

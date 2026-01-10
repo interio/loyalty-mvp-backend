@@ -46,18 +46,14 @@ public class RulesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] PointsRuleUpsertRequest request, CancellationToken ct)
+    public async Task<IActionResult> Update(Guid id, [FromBody] PointsRuleStatusUpdateRequest request, CancellationToken ct)
     {
         try
         {
             if (request.TenantId == Guid.Empty)
                 return BadRequest("tenantId is required.");
 
-            if (!await _service.ExistsAsync(id, request.TenantId, ct))
-                return NotFound("Rule not found.");
-
-            request.Id = id;
-            await _service.UpsertAsync(new[] { request }, ct);
+            await _service.SetActiveAsync(id, request.TenantId, request.Active, ct);
             return Ok();
         }
         catch (ArgumentException ex)
@@ -107,4 +103,10 @@ public class RulesController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError, "Unexpected error.");
         }
     }
+}
+
+public class PointsRuleStatusUpdateRequest
+{
+    public Guid TenantId { get; set; }
+    public bool Active { get; set; }
 }
