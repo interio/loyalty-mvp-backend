@@ -23,6 +23,9 @@ public interface ICustomerService
     /// <summary>Search customers for a tenant using Postgres full-text search.</summary>
     Task<List<Customer>> SearchByTenantAsync(Guid tenantId, string search, int take = 100, CancellationToken ct = default);
 
+    /// <summary>Page customers for a tenant using classic page numbers.</summary>
+    Task<CustomerPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default);
+
     /// <summary>Create a customer and seed its points account.</summary>
     Task<Customer> CreateAsync(CreateCustomerCommand command, CancellationToken ct = default);
 }
@@ -80,6 +83,36 @@ public interface ICustomerService
             .Take(take);
 
         return LoadPointsAsync(baseQuery, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<CustomerPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+
+        var size = Math.Clamp(pageSize, 1, 200);
+        var safePage = Math.Max(page, 1);
+
+        var baseQuery = _db.Customers
+            .AsNoTracking()
+            .Where(c => c.TenantId == tenantId);
+
+        var totalCount = await baseQuery.CountAsync(ct);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
+        if (totalPages > 0 && safePage > totalPages)
+        {
+            safePage = totalPages;
+        }
+
+        var query = baseQuery
+            .OrderBy(c => c.Name)
+            .ThenBy(c => c.Id)
+            .Skip((safePage - 1) * size)
+            .Take(size);
+
+        var items = await LoadPointsAsync(query, ct);
+
+        return new CustomerPageResult(items, totalCount, safePage, size, totalPages);
     }
 
     /// <inheritdoc />
@@ -164,4 +197,12 @@ public interface ICustomerService
 
         return customers;
     }
+
 }
+
+public record CustomerPageResult(
+    IReadOnlyList<Customer> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);
