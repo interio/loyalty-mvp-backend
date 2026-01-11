@@ -20,6 +20,34 @@ public class PointsRuleService
            .ThenBy(r => r.CreatedAt)
            .ToListAsync(ct);
 
+    public async Task<PointsRulePageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+
+        var size = Math.Clamp(pageSize, 1, 200);
+        var safePage = Math.Max(page, 1);
+
+        var baseQuery = _db.PointsRules
+           .AsNoTracking()
+           .Where(r => r.TenantId == tenantId);
+
+        var totalCount = await baseQuery.CountAsync(ct);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
+        if (totalPages > 0 && safePage > totalPages)
+        {
+            safePage = totalPages;
+        }
+
+        var items = await baseQuery
+           .OrderBy(r => r.Priority)
+           .ThenBy(r => r.CreatedAt)
+           .Skip((safePage - 1) * size)
+           .Take(size)
+           .ToListAsync(ct);
+
+        return new PointsRulePageResult(items, totalCount, safePage, size, totalPages);
+    }
+
     public Task<bool> ExistsAsync(Guid id, Guid tenantId, CancellationToken ct = default) =>
         _db.PointsRules.AnyAsync(r => r.Id == id && r.TenantId == tenantId, ct);
 
@@ -98,6 +126,13 @@ public class PointsRuleService
         if (string.IsNullOrWhiteSpace(req.RuleType)) throw new ArgumentException("ruleType is required.");
     }
 }
+
+public record PointsRulePageResult(
+    IReadOnlyList<PointsRule> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);
 
 public class PointsRuleUpsertRequest
 {

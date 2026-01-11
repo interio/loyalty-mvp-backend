@@ -15,6 +15,19 @@ public class RewardOrderQueries
     public Task<List<RewardOrder>> RewardOrdersByTenant(Guid tenantId, [Service] RewardOrderService orders) =>
         SafeExecute(() => orders.ListByTenantAsync(tenantId));
 
+    public Task<RewardOrderConnection> RewardOrdersByTenantPage(
+        Guid tenantId,
+        int page,
+        int pageSize,
+        [Service] RewardOrderService orders) =>
+        SafeExecute(async () =>
+        {
+            var result = await orders.ListByTenantPageAsync(tenantId, page, pageSize);
+            return new RewardOrderConnection(
+                result.Items,
+                new RewardOrderPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+        });
+
     public Task<RewardOrder?> RewardOrder(Guid tenantId, Guid id, [Service] RewardOrderService orders) =>
         SafeExecute(() => orders.GetByIdAsync(tenantId, id));
 
@@ -30,3 +43,7 @@ public class RewardOrderQueries
         }
     }
 }
+
+public record RewardOrderConnection(IReadOnlyList<RewardOrder> Nodes, RewardOrderPageInfo PageInfo);
+
+public record RewardOrderPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);

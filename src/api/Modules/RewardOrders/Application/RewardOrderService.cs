@@ -52,6 +52,34 @@ public class RewardOrderService
             .Take(take)
             .ToListAsync(ct);
 
+    public async Task<RewardOrderPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+
+        var size = Math.Clamp(pageSize, 1, 200);
+        var safePage = Math.Max(page, 1);
+
+        var baseQuery = _db.RewardOrders
+            .AsNoTracking()
+            .Include(o => o.Items)
+            .Where(o => o.TenantId == tenantId);
+
+        var totalCount = await baseQuery.CountAsync(ct);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
+        if (totalPages > 0 && safePage > totalPages)
+        {
+            safePage = totalPages;
+        }
+
+        var items = await baseQuery
+            .OrderByDescending(o => o.CreatedAt)
+            .Skip((safePage - 1) * size)
+            .Take(size)
+            .ToListAsync(ct);
+
+        return new RewardOrderPageResult(items, totalCount, safePage, size, totalPages);
+    }
+
     public Task<RewardOrder?> GetByIdAsync(Guid tenantId, Guid orderId, CancellationToken ct = default) =>
         _db.RewardOrders
             .AsNoTracking()
@@ -197,3 +225,10 @@ public class RewardOrderService
         }
     }
 }
+
+public record RewardOrderPageResult(
+    IReadOnlyList<RewardOrder> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);

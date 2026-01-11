@@ -14,6 +14,19 @@ public class RewardCatalogQueries
     public Task<List<RewardProduct>> RewardProducts(Guid? tenantId, [Service] RewardCatalogService catalog) =>
         SafeExecute(() => catalog.ListAsync(tenantId));
 
+    public Task<RewardProductConnection> RewardProductsPage(
+        Guid? tenantId,
+        int page,
+        int pageSize,
+        [Service] RewardCatalogService catalog) =>
+        SafeExecute(async () =>
+        {
+            var result = await catalog.ListPageAsync(tenantId, page, pageSize);
+            return new RewardProductConnection(
+                result.Items,
+                new RewardProductPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+        });
+
     public Task<List<RewardProduct>> RewardProductsSearch(string search, Guid? tenantId, [Service] RewardCatalogService catalog) =>
         SafeExecute(() => catalog.SearchAsync(search, tenantId));
 
@@ -35,3 +48,7 @@ public class RewardCatalogQueries
         }
     }
 }
+
+public record RewardProductConnection(IReadOnlyList<RewardProduct> Nodes, RewardProductPageInfo PageInfo);
+
+public record RewardProductPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);

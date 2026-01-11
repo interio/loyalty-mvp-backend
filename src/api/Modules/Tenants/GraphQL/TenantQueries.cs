@@ -13,6 +13,18 @@ public class TenantQueries
     public Task<List<Tenant>> Tenants([Service] ITenantService tenants) =>
         SafeExecute(() => tenants.ListAsync());
 
+    public Task<TenantConnection> TenantsPage(
+        int page,
+        int pageSize,
+        [Service] ITenantService tenants) =>
+        SafeExecute(async () =>
+        {
+            var result = await tenants.ListPageAsync(page, pageSize);
+            return new TenantConnection(
+                result.Items,
+                new TenantPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+        });
+
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {
         try
@@ -25,3 +37,7 @@ public class TenantQueries
         }
     }
 }
+
+public record TenantConnection(IReadOnlyList<Tenant> Nodes, TenantPageInfo PageInfo);
+
+public record TenantPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);

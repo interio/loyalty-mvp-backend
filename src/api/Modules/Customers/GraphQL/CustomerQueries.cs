@@ -39,6 +39,20 @@ public class CustomerQueries
     public Task<List<User>> UsersByTenant(Guid tenantId, [Service] IUserService users) =>
         SafeExecute(() => users.ListByTenantAsync(tenantId));
 
+    /// <summary>Pages users for a tenant (admin UI).</summary>
+    public Task<UserConnection> UsersByTenantPage(
+        Guid tenantId,
+        int page,
+        int pageSize,
+        [Service] IUserService users) =>
+        SafeExecute(async () =>
+        {
+            var result = await users.ListByTenantPageAsync(tenantId, page, pageSize);
+            return new UserConnection(
+                result.Items,
+                new UserPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+        });
+
     /// <summary>Searches users for a tenant.</summary>
     public Task<List<User>> UsersByTenantSearch(Guid tenantId, string search, [Service] IUserService users) =>
         SafeExecute(() => users.SearchByTenantAsync(tenantId, search));
@@ -63,3 +77,7 @@ public class CustomerQueries
 public record CustomerConnection(IReadOnlyList<Customer> Nodes, CustomerPageInfo PageInfo);
 
 public record CustomerPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
+
+public record UserConnection(IReadOnlyList<User> Nodes, UserPageInfo PageInfo);
+
+public record UserPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);

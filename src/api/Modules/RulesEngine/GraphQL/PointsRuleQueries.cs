@@ -13,6 +13,20 @@ public class PointsRuleQueries
     public Task<List<PointsRule>> PointsRulesByTenant(Guid tenantId, [Service] PointsRuleService rules) =>
         SafeExecute(() => rules.ListByTenantAsync(tenantId));
 
+    /// <summary>Pages points rules for a tenant.</summary>
+    public Task<PointsRuleConnection> PointsRulesByTenantPage(
+        Guid tenantId,
+        int page,
+        int pageSize,
+        [Service] PointsRuleService rules) =>
+        SafeExecute(async () =>
+        {
+            var result = await rules.ListByTenantPageAsync(tenantId, page, pageSize);
+            return new PointsRuleConnection(
+                result.Items,
+                new PointsRulePageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+        });
+
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {
         try
@@ -25,3 +39,7 @@ public class PointsRuleQueries
         }
     }
 }
+
+public record PointsRuleConnection(IReadOnlyList<PointsRule> Nodes, PointsRulePageInfo PageInfo);
+
+public record PointsRulePageInfo(int TotalCount, int Page, int PageSize, int TotalPages);

@@ -13,6 +13,16 @@ public class ProductQueries
     public Task<List<Product>> Products([Service] ProductService products) =>
         SafeExecute(() => products.ListAsync());
 
+    /// <summary>Pages products.</summary>
+    public Task<ProductConnection> ProductsPage(int page, int pageSize, [Service] ProductService products) =>
+        SafeExecute(async () =>
+        {
+            var result = await products.ListPageAsync(page, pageSize);
+            return new ProductConnection(
+                result.Items,
+                new ProductPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+        });
+
     /// <summary>Searches products.</summary>
     public Task<List<Product>> ProductsSearch(string search, [Service] ProductService products) =>
         SafeExecute(() => products.SearchAsync(search));
@@ -29,3 +39,7 @@ public class ProductQueries
         }
     }
 }
+
+public record ProductConnection(IReadOnlyList<Product> Nodes, ProductPageInfo PageInfo);
+
+public record ProductPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);

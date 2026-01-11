@@ -16,6 +16,9 @@ public interface IUserService
     /// <summary>List users belonging to a tenant.</summary>
     Task<List<User>> ListByTenantAsync(Guid tenantId, int take = 500, CancellationToken ct = default);
 
+    /// <summary>Page users belonging to a tenant.</summary>
+    Task<UserPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default);
+
     /// <summary>Search users within a tenant.</summary>
     Task<List<User>> SearchByTenantAsync(Guid tenantId, string search, int take = 200, CancellationToken ct = default);
 
@@ -52,6 +55,35 @@ public class UserService : IUserService, IUserLookup
            .OrderBy(u => u.Email)
            .Take(take)
            .ToListAsync(ct);
+
+    /// <inheritdoc />
+    public async Task<UserPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+
+        var size = Math.Clamp(pageSize, 1, 200);
+        var safePage = Math.Max(page, 1);
+
+        var baseQuery = _db.Users
+            .AsNoTracking()
+            .Include(u => u.Customer)
+            .Where(u => u.TenantId == tenantId);
+
+        var totalCount = await baseQuery.CountAsync(ct);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
+        if (totalPages > 0 && safePage > totalPages)
+        {
+            safePage = totalPages;
+        }
+
+        var items = await baseQuery
+            .OrderBy(u => u.Email)
+            .Skip((safePage - 1) * size)
+            .Take(size)
+            .ToListAsync(ct);
+
+        return new UserPageResult(items, totalCount, safePage, size, totalPages);
+    }
 
     /// <inheritdoc />
     public Task<List<User>> SearchByTenantAsync(Guid tenantId, string search, int take = 200, CancellationToken ct = default)
@@ -124,3 +156,10 @@ public class UserService : IUserService, IUserLookup
     public Task<User?> GetAsync(Guid id, CancellationToken ct = default) =>
         _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, ct);
 }
+
+public record UserPageResult(
+    IReadOnlyList<User> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);

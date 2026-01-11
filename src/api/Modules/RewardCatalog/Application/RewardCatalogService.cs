@@ -24,6 +24,31 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
             .ToListAsync(ct);
     }
 
+    public async Task<RewardProductPageResult> ListPageAsync(Guid? tenantId, int page, int pageSize, CancellationToken ct = default)
+    {
+        var size = Math.Clamp(pageSize, 1, 200);
+        var safePage = Math.Max(page, 1);
+
+        var baseQuery = _db.RewardProducts.AsNoTracking();
+        if (tenantId.HasValue)
+            baseQuery = baseQuery.Where(p => p.TenantId == tenantId.Value);
+
+        var totalCount = await baseQuery.CountAsync(ct);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
+        if (totalPages > 0 && safePage > totalPages)
+        {
+            safePage = totalPages;
+        }
+
+        var items = await baseQuery
+            .OrderBy(p => p.Name)
+            .Skip((safePage - 1) * size)
+            .Take(size)
+            .ToListAsync(ct);
+
+        return new RewardProductPageResult(items, totalCount, safePage, size, totalPages);
+    }
+
     public Task<List<RewardProduct>> SearchAsync(string search, Guid? tenantId = null, int take = 200, CancellationToken ct = default)
     {
         var term = search?.Trim();
@@ -205,3 +230,10 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
     }
 
 }
+
+public record RewardProductPageResult(
+    IReadOnlyList<RewardProduct> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);

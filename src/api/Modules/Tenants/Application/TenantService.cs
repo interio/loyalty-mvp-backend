@@ -15,6 +15,9 @@ public interface ITenantService
 
     /// <summary>List tenants for administration.</summary>
     Task<List<Tenant>> ListAsync(int take = 200, CancellationToken ct = default);
+
+    /// <summary>Page tenants for administration.</summary>
+    Task<TenantPageResult> ListPageAsync(int page, int pageSize, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -48,7 +51,38 @@ public class TenantService : ITenantService
     /// <inheritdoc />
     public Task<List<Tenant>> ListAsync(int take = 200, CancellationToken ct = default) =>
         _db.Tenants
+           .AsNoTracking()
            .OrderBy(t => t.Name)
            .Take(take)
            .ToListAsync(ct);
+
+    /// <inheritdoc />
+    public async Task<TenantPageResult> ListPageAsync(int page, int pageSize, CancellationToken ct = default)
+    {
+        var size = Math.Clamp(pageSize, 1, 200);
+        var safePage = Math.Max(page, 1);
+
+        var baseQuery = _db.Tenants.AsNoTracking();
+        var totalCount = await baseQuery.CountAsync(ct);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
+        if (totalPages > 0 && safePage > totalPages)
+        {
+            safePage = totalPages;
+        }
+
+        var items = await baseQuery
+            .OrderBy(t => t.Name)
+            .Skip((safePage - 1) * size)
+            .Take(size)
+            .ToListAsync(ct);
+
+        return new TenantPageResult(items, totalCount, safePage, size, totalPages);
+    }
 }
+
+public record TenantPageResult(
+    IReadOnlyList<Tenant> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);

@@ -15,10 +15,33 @@ public class ProductService
     /// <summary>List products.</summary>
     public Task<List<Product>> ListAsync(int take = 500, CancellationToken ct = default) =>
         _db.Products
-           .AsNoTracking()
-           .OrderBy(p => p.Name)
-           .Take(take)
-           .ToListAsync(ct);
+            .AsNoTracking()
+            .OrderBy(p => p.Name)
+            .Take(take)
+            .ToListAsync(ct);
+
+    /// <summary>Page products.</summary>
+    public async Task<ProductPageResult> ListPageAsync(int page, int pageSize, CancellationToken ct = default)
+    {
+        var size = Math.Clamp(pageSize, 1, 200);
+        var safePage = Math.Max(page, 1);
+
+        var baseQuery = _db.Products.AsNoTracking();
+        var totalCount = await baseQuery.CountAsync(ct);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
+        if (totalPages > 0 && safePage > totalPages)
+        {
+            safePage = totalPages;
+        }
+
+        var items = await baseQuery
+            .OrderBy(p => p.Name)
+            .Skip((safePage - 1) * size)
+            .Take(size)
+            .ToListAsync(ct);
+
+        return new ProductPageResult(items, totalCount, safePage, size, totalPages);
+    }
 
     /// <summary>Search products.</summary>
     public Task<List<Product>> SearchAsync(string search, int take = 200, CancellationToken ct = default)
@@ -119,3 +142,10 @@ public class ProductService
         return json;
     }
 }
+
+public record ProductPageResult(
+    IReadOnlyList<Product> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);

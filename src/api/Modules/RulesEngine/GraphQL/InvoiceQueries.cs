@@ -31,60 +31,105 @@ public class InvoiceQueries
                 .Take(take <= 0 ? 200 : Math.Min(take, 1000))
                 .ToListAsync();
 
-            if (docs.Count == 0) return new List<InboundInvoiceDto>();
-
-            var parsedDocs = docs.Select(d =>
-            {
-                InvoiceUpsertRequest? parsed = null;
-                try
-                {
-                    parsed = d.Payload.Deserialize<InvoiceUpsertRequest>(new JsonSerializerOptions());
-                }
-                catch
-                {
-                    parsed = null;
-                }
-                return (Doc: d, Parsed: parsed);
-            }).ToList();
-
-            var invoiceIds = parsedDocs.Select(d => d.Doc.ExternalId).Distinct().ToList();
-            var customerExternalIds = parsedDocs
-                .Select(d => d.Parsed?.CustomerExternalId)
-                .Where(v => !string.IsNullOrWhiteSpace(v))
-                .Distinct()
-                .ToList();
-
-            var customers = await customersDb.Customers
-                .AsNoTracking()
-                .Where(c => c.TenantId == tenantId && customerExternalIds.Contains(c.ExternalId))
-                .Select(c => new { c.Id, c.ExternalId })
-                .ToListAsync();
-
-            var customerIdByExternal = customers
-                .Where(c => c.ExternalId != null)
-                .ToDictionary(c => c.ExternalId!, c => c.Id);
-
-            var customerIds = customers.Select(c => c.Id).ToList();
-            var transactions = await ledgerDb.PointsTransactions
-                .AsNoTracking()
-                .Where(t =>
-                    t.Reason == PointsReasons.InvoiceEarn &&
-                    t.CorrelationId != null &&
-                    invoiceIds.Contains(t.CorrelationId) &&
-                    customerIds.Contains(t.CustomerId))
-                .Select(t => new { t.CustomerId, t.CorrelationId, t.AppliedRules })
-                .ToListAsync();
-
-            var appliedRulesByKey = transactions
-                .Where(t => t.CorrelationId != null)
-                .ToDictionary(
-                    t => (t.CustomerId, t.CorrelationId!),
-                    t => t.AppliedRules == null ? null : t.AppliedRules.RootElement.GetRawText());
-
-            return parsedDocs
-                .Select(d => FromInboundDocument(d.Doc, d.Parsed, customerIdByExternal, appliedRulesByKey))
-                .ToList();
+            return await BuildInvoiceDtos(docs, tenantId, customersDb, ledgerDb);
         });
+
+    /// <summary>Pages invoices for a tenant.</summary>
+    public Task<InboundInvoiceConnection> InvoicesByTenantPage(
+        Guid tenantId,
+        int page,
+        int pageSize,
+        [Service] IntegrationDbContext db,
+        [Service] CustomersDbContext customersDb,
+        [Service] LedgerDbContext ledgerDb) =>
+        SafeExecute(async () =>
+        {
+            var size = Math.Clamp(pageSize, 1, 200);
+            var safePage = Math.Max(page, 1);
+
+            var baseQuery = db.InboundDocuments
+                .AsNoTracking()
+                .Where(d => d.TenantId == tenantId && d.DocumentType == "invoice");
+
+            var totalCount = await baseQuery.CountAsync();
+            var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
+            if (totalPages > 0 && safePage > totalPages)
+            {
+                safePage = totalPages;
+            }
+
+            var docs = await baseQuery
+                .OrderByDescending(d => d.ReceivedAt)
+                .Skip((safePage - 1) * size)
+                .Take(size)
+                .ToListAsync();
+
+            var items = await BuildInvoiceDtos(docs, tenantId, customersDb, ledgerDb);
+            return new InboundInvoiceConnection(
+                items,
+                new InboundInvoicePageInfo(totalCount, safePage, size, totalPages));
+        });
+
+    private static async Task<List<InboundInvoiceDto>> BuildInvoiceDtos(
+        List<InboundDocument> docs,
+        Guid tenantId,
+        CustomersDbContext customersDb,
+        LedgerDbContext ledgerDb)
+    {
+        if (docs.Count == 0) return new List<InboundInvoiceDto>();
+
+        var parsedDocs = docs.Select(d =>
+        {
+            InvoiceUpsertRequest? parsed = null;
+            try
+            {
+                parsed = d.Payload.Deserialize<InvoiceUpsertRequest>(new JsonSerializerOptions());
+            }
+            catch
+            {
+                parsed = null;
+            }
+            return (Doc: d, Parsed: parsed);
+        }).ToList();
+
+        var invoiceIds = parsedDocs.Select(d => d.Doc.ExternalId).Distinct().ToList();
+        var customerExternalIds = parsedDocs
+            .Select(d => d.Parsed?.CustomerExternalId)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct()
+            .ToList();
+
+        var customers = await customersDb.Customers
+            .AsNoTracking()
+            .Where(c => c.TenantId == tenantId && customerExternalIds.Contains(c.ExternalId))
+            .Select(c => new { c.Id, c.ExternalId })
+            .ToListAsync();
+
+        var customerIdByExternal = customers
+            .Where(c => c.ExternalId != null)
+            .ToDictionary(c => c.ExternalId!, c => c.Id);
+
+        var customerIds = customers.Select(c => c.Id).ToList();
+        var transactions = await ledgerDb.PointsTransactions
+            .AsNoTracking()
+            .Where(t =>
+                t.Reason == PointsReasons.InvoiceEarn &&
+                t.CorrelationId != null &&
+                invoiceIds.Contains(t.CorrelationId) &&
+                customerIds.Contains(t.CustomerId))
+            .Select(t => new { t.CustomerId, t.CorrelationId, t.AppliedRules })
+            .ToListAsync();
+
+        var appliedRulesByKey = transactions
+            .Where(t => t.CorrelationId != null)
+            .ToDictionary(
+                t => (t.CustomerId, t.CorrelationId!),
+                t => t.AppliedRules == null ? null : t.AppliedRules.RootElement.GetRawText());
+
+        return parsedDocs
+            .Select(d => FromInboundDocument(d.Doc, d.Parsed, customerIdByExternal, appliedRulesByKey))
+            .ToList();
+    }
 
     private static InboundInvoiceDto FromInboundDocument(
         InboundDocument doc,
@@ -158,3 +203,7 @@ public record InboundInvoiceLineDto(
     string Sku,
     decimal Quantity,
     decimal NetAmount);
+
+public record InboundInvoiceConnection(IReadOnlyList<InboundInvoiceDto> Nodes, InboundInvoicePageInfo PageInfo);
+
+public record InboundInvoicePageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
