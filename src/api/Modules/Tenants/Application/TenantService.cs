@@ -1,6 +1,7 @@
 using Loyalty.Api.Modules.Tenants.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Tenants.Domain;
 using Microsoft.EntityFrameworkCore;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.Tenants.Application;
 
@@ -17,7 +18,7 @@ public interface ITenantService
     Task<List<Tenant>> ListAsync(int take = 200, CancellationToken ct = default);
 
     /// <summary>Page tenants for administration.</summary>
-    Task<TenantPageResult> ListPageAsync(int page, int pageSize, CancellationToken ct = default);
+    Task<PageResult<Tenant>> ListPageAsync(int page, int pageSize, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -57,32 +58,12 @@ public class TenantService : ITenantService
            .ToListAsync(ct);
 
     /// <inheritdoc />
-    public async Task<TenantPageResult> ListPageAsync(int page, int pageSize, CancellationToken ct = default)
+    public async Task<PageResult<Tenant>> ListPageAsync(int page, int pageSize, CancellationToken ct = default)
     {
-        var size = Math.Clamp(pageSize, 1, 200);
-        var safePage = Math.Max(page, 1);
+        var query = _db.Tenants
+            .AsNoTracking()
+            .OrderBy(t => t.Name);
 
-        var baseQuery = _db.Tenants.AsNoTracking();
-        var totalCount = await baseQuery.CountAsync(ct);
-        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
-        if (totalPages > 0 && safePage > totalPages)
-        {
-            safePage = totalPages;
-        }
-
-        var items = await baseQuery
-            .OrderBy(t => t.Name)
-            .Skip((safePage - 1) * size)
-            .Take(size)
-            .ToListAsync(ct);
-
-        return new TenantPageResult(items, totalCount, safePage, size, totalPages);
+        return await query.ToPageResultAsync(page, pageSize, ct);
     }
 }
-
-public record TenantPageResult(
-    IReadOnlyList<Tenant> Items,
-    int TotalCount,
-    int Page,
-    int PageSize,
-    int TotalPages);

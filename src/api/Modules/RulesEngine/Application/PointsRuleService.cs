@@ -2,6 +2,7 @@ using System.Text.Json;
 using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.RulesEngine.Application;
 
@@ -20,32 +21,18 @@ public class PointsRuleService
            .ThenBy(r => r.CreatedAt)
            .ToListAsync(ct);
 
-    public async Task<PointsRulePageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
+    public async Task<PageResult<PointsRule>> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
 
-        var size = Math.Clamp(pageSize, 1, 200);
-        var safePage = Math.Max(page, 1);
-
-        var baseQuery = _db.PointsRules
+        var query = _db.PointsRules
            .AsNoTracking()
-           .Where(r => r.TenantId == tenantId);
-
-        var totalCount = await baseQuery.CountAsync(ct);
-        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
-        if (totalPages > 0 && safePage > totalPages)
-        {
-            safePage = totalPages;
-        }
-
-        var items = await baseQuery
+           .Where(r => r.TenantId == tenantId)
            .OrderBy(r => r.Priority)
            .ThenBy(r => r.CreatedAt)
-           .Skip((safePage - 1) * size)
-           .Take(size)
-           .ToListAsync(ct);
+           .AsQueryable();
 
-        return new PointsRulePageResult(items, totalCount, safePage, size, totalPages);
+        return await query.ToPageResultAsync(page, pageSize, ct);
     }
 
     public Task<bool> ExistsAsync(Guid id, Guid tenantId, CancellationToken ct = default) =>
@@ -127,12 +114,6 @@ public class PointsRuleService
     }
 }
 
-public record PointsRulePageResult(
-    IReadOnlyList<PointsRule> Items,
-    int TotalCount,
-    int Page,
-    int PageSize,
-    int TotalPages);
 
 public class PointsRuleUpsertRequest
 {

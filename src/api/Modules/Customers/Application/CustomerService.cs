@@ -5,6 +5,7 @@ using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.Transactions;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.Customers.Application;
 
@@ -24,7 +25,7 @@ public interface ICustomerService
     Task<List<Customer>> SearchByTenantAsync(Guid tenantId, string search, int take = 100, CancellationToken ct = default);
 
     /// <summary>Page customers for a tenant using classic page numbers.</summary>
-    Task<CustomerPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default);
+    Task<PageResult<Customer>> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, string? search = null, CancellationToken ct = default);
 
     /// <summary>Create a customer and seed its points account.</summary>
     Task<Customer> CreateAsync(CreateCustomerCommand command, CancellationToken ct = default);
@@ -86,17 +87,26 @@ public interface ICustomerService
     }
 
     /// <inheritdoc />
-    public async Task<CustomerPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
+    public async Task<PageResult<Customer>> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, string? search = null, CancellationToken ct = default)
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
-
-        var size = Math.Clamp(pageSize, 1, 200);
-        var safePage = Math.Max(page, 1);
 
         var baseQuery = _db.Customers
             .AsNoTracking()
             .Where(c => c.TenantId == tenantId);
 
+        var term = search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            baseQuery = baseQuery.Where(c =>
+                EF.Functions.ToTsVector(
+                        "simple",
+                        (c.Name ?? string.Empty) + " " + (c.ExternalId ?? string.Empty) + " " + (c.ContactEmail ?? string.Empty))
+                    .Matches(EF.Functions.PlainToTsQuery("simple", term)));
+        }
+
+        var size = Math.Clamp(pageSize, 1, 200);
+        var safePage = Math.Max(page, 1);
         var totalCount = await baseQuery.CountAsync(ct);
         var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
         if (totalPages > 0 && safePage > totalPages)
@@ -112,7 +122,7 @@ public interface ICustomerService
 
         var items = await LoadPointsAsync(query, ct);
 
-        return new CustomerPageResult(items, totalCount, safePage, size, totalPages);
+        return new PageResult<Customer>(items, totalCount, safePage, size, totalPages);
     }
 
     /// <inheritdoc />
@@ -199,10 +209,3 @@ public interface ICustomerService
     }
 
 }
-
-public record CustomerPageResult(
-    IReadOnlyList<Customer> Items,
-    int TotalCount,
-    int Page,
-    int PageSize,
-    int TotalPages);

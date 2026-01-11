@@ -50,6 +50,7 @@ public class PointsPostingService
             {
                 TenantId = request.TenantId,
                 ExternalId = request.InvoiceId,
+                CustomerExternalId = request.CustomerExternalId,
                 DocumentType = DocumentTypeInvoice,
                 Payload = (JsonObject)node,
                 Status = InboundDocumentStatus.PendingPoints
@@ -60,6 +61,7 @@ public class PointsPostingService
             // If already stored, ensure it is queued for processing.
             existing.Status = InboundDocumentStatus.PendingPoints;
             existing.Error = null;
+            existing.CustomerExternalId = request.CustomerExternalId;
             existing.Payload = JsonSerializer.SerializeToNode(request) as JsonObject ?? new JsonObject();
         }
 

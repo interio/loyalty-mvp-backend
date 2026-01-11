@@ -8,6 +8,7 @@ using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.RulesEngine.GraphQL;
 
@@ -39,6 +40,7 @@ public class InvoiceQueries
         Guid tenantId,
         int page,
         int pageSize,
+        string? search,
         [Service] IntegrationDbContext db,
         [Service] CustomersDbContext customersDb,
         [Service] LedgerDbContext ledgerDb) =>
@@ -50,6 +52,17 @@ public class InvoiceQueries
             var baseQuery = db.InboundDocuments
                 .AsNoTracking()
                 .Where(d => d.TenantId == tenantId && d.DocumentType == "invoice");
+
+            var term = search?.Trim();
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                var pattern = $"%{term}%";
+                baseQuery = baseQuery.Where(d =>
+                    EF.Functions.ILike(d.ExternalId, pattern) ||
+                    EF.Functions.ILike(d.Status, pattern) ||
+                    (d.Error != null && EF.Functions.ILike(d.Error, pattern)) ||
+                    (d.CustomerExternalId != null && EF.Functions.ILike(d.CustomerExternalId, pattern)));
+            }
 
             var totalCount = await baseQuery.CountAsync();
             var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
@@ -67,7 +80,59 @@ public class InvoiceQueries
             var items = await BuildInvoiceDtos(docs, tenantId, customersDb, ledgerDb);
             return new InboundInvoiceConnection(
                 items,
-                new InboundInvoicePageInfo(totalCount, safePage, size, totalPages));
+                new PageInfo(totalCount, safePage, size, totalPages));
+        });
+
+    /// <summary>Cursor-based invoice pagination for large datasets.</summary>
+    public Task<InboundInvoiceCursorConnection> InvoicesByTenantCursor(
+        Guid tenantId,
+        int take,
+        string? after,
+        string? search,
+        [Service] IntegrationDbContext db,
+        [Service] CustomersDbContext customersDb,
+        [Service] LedgerDbContext ledgerDb) =>
+        SafeExecute(async () =>
+        {
+            var size = Math.Clamp(take, 1, 200);
+            var cursor = CursorPaging.DecodeTimestampCursor(after);
+
+            var baseQuery = db.InboundDocuments
+                .AsNoTracking()
+                .Where(d => d.TenantId == tenantId && d.DocumentType == "invoice");
+
+            var term = search?.Trim();
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                var pattern = $"%{term}%";
+                baseQuery = baseQuery.Where(d =>
+                    EF.Functions.ILike(d.ExternalId, pattern) ||
+                    EF.Functions.ILike(d.Status, pattern) ||
+                    (d.Error != null && EF.Functions.ILike(d.Error, pattern)) ||
+                    (d.CustomerExternalId != null && EF.Functions.ILike(d.CustomerExternalId, pattern)));
+            }
+
+            if (cursor != null)
+            {
+                baseQuery = baseQuery.Where(d =>
+                    d.ReceivedAt < cursor.Timestamp ||
+                    (d.ReceivedAt == cursor.Timestamp && d.Id.CompareTo(cursor.Id) < 0));
+            }
+
+            var docs = await baseQuery
+                .OrderByDescending(d => d.ReceivedAt)
+                .ThenByDescending(d => d.Id)
+                .Take(size + 1)
+                .ToListAsync();
+
+            var hasNext = docs.Count > size;
+            var pageDocs = hasNext ? docs.Take(size).ToList() : docs;
+            var items = await BuildInvoiceDtos(pageDocs, tenantId, customersDb, ledgerDb);
+            var endCursor = pageDocs.Count == 0
+                ? null
+                : CursorPaging.EncodeTimestampCursor(pageDocs[^1].ReceivedAt, pageDocs[^1].Id);
+
+            return new InboundInvoiceCursorConnection(items, new CursorPageInfo(endCursor, hasNext));
         });
 
     private static async Task<List<InboundInvoiceDto>> BuildInvoiceDtos(
@@ -141,8 +206,9 @@ public class InvoiceQueries
             .Select(l => new InboundInvoiceLineDto(l.Sku, l.Quantity, l.NetAmount))
             .ToList() ?? new List<InboundInvoiceLineDto>();
 
-        var appliedRulesJson = (parsed?.CustomerExternalId != null &&
-                                customerIdByExternal.TryGetValue(parsed.CustomerExternalId, out var customerId) &&
+        var customerExternalId = parsed?.CustomerExternalId ?? doc.CustomerExternalId;
+        var appliedRulesJson = (customerExternalId != null &&
+                                customerIdByExternal.TryGetValue(customerExternalId, out var customerId) &&
                                 appliedRulesByKey.TryGetValue((customerId, doc.ExternalId), out var rulesJson))
             ? rulesJson
             : null;
@@ -151,7 +217,7 @@ public class InvoiceQueries
             doc.Id,
             doc.TenantId,
             doc.ExternalId,
-            parsed?.CustomerExternalId,
+            customerExternalId,
             parsed?.Currency,
             parsed?.ActorEmail,
             parsed?.ActorExternalId,
@@ -204,6 +270,6 @@ public record InboundInvoiceLineDto(
     decimal Quantity,
     decimal NetAmount);
 
-public record InboundInvoiceConnection(IReadOnlyList<InboundInvoiceDto> Nodes, InboundInvoicePageInfo PageInfo);
+public record InboundInvoiceConnection(IReadOnlyList<InboundInvoiceDto> Nodes, PageInfo PageInfo);
 
-public record InboundInvoicePageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
+public record InboundInvoiceCursorConnection(IReadOnlyList<InboundInvoiceDto> Nodes, CursorPageInfo PageInfo);

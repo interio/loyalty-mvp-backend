@@ -4,6 +4,7 @@ using Loyalty.Api.Modules.RewardCatalog.Application;
 using Loyalty.Api.Modules.RewardCatalog.Domain;
 using Loyalty.Api.Modules.RewardCatalog.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.RewardCatalog.GraphQL;
 
@@ -18,13 +19,14 @@ public class RewardCatalogQueries
         Guid? tenantId,
         int page,
         int pageSize,
+        string? search,
         [Service] RewardCatalogService catalog) =>
         SafeExecute(async () =>
         {
-            var result = await catalog.ListPageAsync(tenantId, page, pageSize);
+            var result = await catalog.ListPageAsync(tenantId, page, pageSize, search);
             return new RewardProductConnection(
                 result.Items,
-                new RewardProductPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+                new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
         });
 
     public Task<List<RewardProduct>> RewardProductsSearch(string search, Guid? tenantId, [Service] RewardCatalogService catalog) =>
@@ -49,6 +51,4 @@ public class RewardCatalogQueries
     }
 }
 
-public record RewardProductConnection(IReadOnlyList<RewardProduct> Nodes, RewardProductPageInfo PageInfo);
-
-public record RewardProductPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
+public record RewardProductConnection(IReadOnlyList<RewardProduct> Nodes, PageInfo PageInfo);

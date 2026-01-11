@@ -28,6 +28,7 @@ public class IntegrationDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.ExternalId).IsRequired().HasMaxLength(200);
+            e.Property(x => x.CustomerExternalId).HasMaxLength(200);
             e.Property(x => x.DocumentType).IsRequired().HasMaxLength(100);
             e.Property(x => x.Status).IsRequired().HasMaxLength(50);
             e.Property(x => x.PayloadHash).HasMaxLength(200);
@@ -42,6 +43,8 @@ public class IntegrationDbContext : DbContext
                 .Metadata.SetValueComparer(comparer);
 
             e.HasIndex(x => new { x.TenantId, x.DocumentType, x.ExternalId }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.CustomerExternalId });
+            e.HasIndex(x => new { x.TenantId, x.ReceivedAt });
             e.HasIndex(x => new { x.Status, x.DocumentType });
             e.HasIndex(x => x.PayloadHash);
             e.ToTable("InboundDocuments");

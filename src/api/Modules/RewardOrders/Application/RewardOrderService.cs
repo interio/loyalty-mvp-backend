@@ -5,6 +5,7 @@ using Loyalty.Api.Modules.RewardCatalog.Application;
 using Loyalty.Api.Modules.RewardOrders.Domain;
 using Loyalty.Api.Modules.RewardOrders.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.RewardOrders.Application;
 
@@ -52,32 +53,51 @@ public class RewardOrderService
             .Take(take)
             .ToListAsync(ct);
 
-    public async Task<RewardOrderPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
+    public async Task<PageResult<RewardOrder>> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
 
-        var size = Math.Clamp(pageSize, 1, 200);
-        var safePage = Math.Max(page, 1);
+        var query = _db.RewardOrders
+            .AsNoTracking()
+            .Include(o => o.Items)
+            .Where(o => o.TenantId == tenantId)
+            .OrderByDescending(o => o.CreatedAt);
 
-        var baseQuery = _db.RewardOrders
+        return await query.ToPageResultAsync(page, pageSize, ct);
+    }
+
+    public async Task<CursorPageResult<RewardOrder>> ListByTenantCursorAsync(Guid tenantId, int take, string? after, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+
+        var size = Math.Clamp(take, 1, 200);
+        var cursor = CursorPaging.DecodeTimestampCursor(after);
+
+        var query = _db.RewardOrders
             .AsNoTracking()
             .Include(o => o.Items)
             .Where(o => o.TenantId == tenantId);
 
-        var totalCount = await baseQuery.CountAsync(ct);
-        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
-        if (totalPages > 0 && safePage > totalPages)
+        if (cursor != null)
         {
-            safePage = totalPages;
+            query = query.Where(o =>
+                o.CreatedAt < cursor.Timestamp ||
+                (o.CreatedAt == cursor.Timestamp && o.Id.CompareTo(cursor.Id) < 0));
         }
 
-        var items = await baseQuery
+        var rows = await query
             .OrderByDescending(o => o.CreatedAt)
-            .Skip((safePage - 1) * size)
-            .Take(size)
+            .ThenByDescending(o => o.Id)
+            .Take(size + 1)
             .ToListAsync(ct);
 
-        return new RewardOrderPageResult(items, totalCount, safePage, size, totalPages);
+        var hasNext = rows.Count > size;
+        var items = hasNext ? rows.Take(size).ToList() : rows;
+        var endCursor = items.Count == 0
+            ? null
+            : CursorPaging.EncodeTimestampCursor(items[^1].CreatedAt, items[^1].Id);
+
+        return new CursorPageResult<RewardOrder>(items, endCursor, hasNext);
     }
 
     public Task<RewardOrder?> GetByIdAsync(Guid tenantId, Guid orderId, CancellationToken ct = default) =>
@@ -225,10 +245,3 @@ public class RewardOrderService
         }
     }
 }
-
-public record RewardOrderPageResult(
-    IReadOnlyList<RewardOrder> Items,
-    int TotalCount,
-    int Page,
-    int PageSize,
-    int TotalPages);

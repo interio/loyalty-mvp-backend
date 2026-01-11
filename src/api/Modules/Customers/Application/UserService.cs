@@ -1,6 +1,7 @@
 using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Customers.Domain;
 using Microsoft.EntityFrameworkCore;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.Customers.Application;
 
@@ -17,7 +18,7 @@ public interface IUserService
     Task<List<User>> ListByTenantAsync(Guid tenantId, int take = 500, CancellationToken ct = default);
 
     /// <summary>Page users belonging to a tenant.</summary>
-    Task<UserPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default);
+    Task<PageResult<User>> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, string? search = null, CancellationToken ct = default);
 
     /// <summary>Search users within a tenant.</summary>
     Task<List<User>> SearchByTenantAsync(Guid tenantId, string search, int take = 200, CancellationToken ct = default);
@@ -57,7 +58,7 @@ public class UserService : IUserService, IUserLookup
            .ToListAsync(ct);
 
     /// <inheritdoc />
-    public async Task<UserPageResult> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, CancellationToken ct = default)
+    public async Task<PageResult<User>> ListByTenantPageAsync(Guid tenantId, int page, int pageSize, string? search = null, CancellationToken ct = default)
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
 
@@ -68,6 +69,16 @@ public class UserService : IUserService, IUserLookup
             .AsNoTracking()
             .Include(u => u.Customer)
             .Where(u => u.TenantId == tenantId);
+
+        var term = search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            var pattern = $"%{term}%";
+            baseQuery = baseQuery.Where(u =>
+                EF.Functions.ILike(u.Email, pattern) ||
+                (u.Role != null && EF.Functions.ILike(u.Role, pattern)) ||
+                (u.ExternalId != null && EF.Functions.ILike(u.ExternalId, pattern)));
+        }
 
         var totalCount = await baseQuery.CountAsync(ct);
         var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
@@ -82,7 +93,7 @@ public class UserService : IUserService, IUserLookup
             .Take(size)
             .ToListAsync(ct);
 
-        return new UserPageResult(items, totalCount, safePage, size, totalPages);
+        return new PageResult<User>(items, totalCount, safePage, size, totalPages);
     }
 
     /// <inheritdoc />
@@ -156,10 +167,3 @@ public class UserService : IUserService, IUserLookup
     public Task<User?> GetAsync(Guid id, CancellationToken ct = default) =>
         _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, ct);
 }
-
-public record UserPageResult(
-    IReadOnlyList<User> Items,
-    int TotalCount,
-    int Page,
-    int PageSize,
-    int TotalPages);

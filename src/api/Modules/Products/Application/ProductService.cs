@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using Loyalty.Api.Modules.Products.Domain;
 using Loyalty.Api.Modules.Products.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.Products.Application;
 
@@ -21,26 +22,23 @@ public class ProductService
             .ToListAsync(ct);
 
     /// <summary>Page products.</summary>
-    public async Task<ProductPageResult> ListPageAsync(int page, int pageSize, CancellationToken ct = default)
+    public async Task<PageResult<Product>> ListPageAsync(int page, int pageSize, string? search = null, CancellationToken ct = default)
     {
-        var size = Math.Clamp(pageSize, 1, 200);
-        var safePage = Math.Max(page, 1);
+        var query = _db.Products.AsNoTracking();
 
-        var baseQuery = _db.Products.AsNoTracking();
-        var totalCount = await baseQuery.CountAsync(ct);
-        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
-        if (totalPages > 0 && safePage > totalPages)
+        var term = search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
         {
-            safePage = totalPages;
+            var pattern = $"%{term}%";
+            query = query.Where(p =>
+                EF.Functions.ILike(p.Name, pattern) ||
+                EF.Functions.ILike(p.Sku, pattern) ||
+                (p.Gtin != null && EF.Functions.ILike(p.Gtin, pattern)));
         }
 
-        var items = await baseQuery
-            .OrderBy(p => p.Name)
-            .Skip((safePage - 1) * size)
-            .Take(size)
-            .ToListAsync(ct);
+        query = query.OrderBy(p => p.Name);
 
-        return new ProductPageResult(items, totalCount, safePage, size, totalPages);
+        return await query.ToPageResultAsync(page, pageSize, ct);
     }
 
     /// <summary>Search products.</summary>
@@ -142,10 +140,3 @@ public class ProductService
         return json;
     }
 }
-
-public record ProductPageResult(
-    IReadOnlyList<Product> Items,
-    int TotalCount,
-    int Page,
-    int PageSize,
-    int TotalPages);

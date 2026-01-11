@@ -15,6 +15,7 @@ This project is a modular monolith designed to be split into microservices later
 - `src/api/Modules/Products` — product catalog for loyalty rules; REST + GraphQL; ProductsDbContext.
 - `src/api/Modules/RewardCatalog` — reward products + inventory snapshots; REST + GraphQL; RewardCatalogDbContext.
 - `src/api/Modules/RewardOrders` — reward redemption orders; REST + GraphQL; RewardOrdersDbContext.
+- `src/api/Modules/Shared` — shared paging helpers and common types used across modules.
 - GraphQL composition lives in `Program.cs` using module extensions.
 
 ## High-level architecture
@@ -57,11 +58,14 @@ By default listens on `http://localhost:8080` (or URLS override). In logs, look 
 ## Endpoints
 - GraphQL: `POST /graphql`
   - Resolvers are registered per module; use module inputs:
-    - Tenants: `createTenant`, `tenants`
-    - Customers/Users: `createCustomer`, `createUser`, `customer`, `customersByTenant`, `usersByCustomer`
+    - Tenants: `createTenant`, `tenants`, `tenantsPage`
+    - Customers/Users: `createCustomer`, `createUser`, `customer`, `customersByTenant`, `customersByTenantPage` (optional `search`), `usersByCustomer`, `usersByTenant`, `usersByTenantPage` (optional `search`)
     - Ledger: `redeemPoints`, `manualAdjustPoints`, `customerTransactions`
-    - RewardCatalog: `rewardProducts`, `rewardProductsSearch`, `rewardProduct`, `upsertRewardProduct`, `deleteRewardProduct`
-    - RulesEngine: `pointsRulesByTenant`, `invoicesByTenant`
+    - Products: `products`, `productsSearch`, `productsPage` (optional `search`)
+    - RewardCatalog: `rewardProducts`, `rewardProductsSearch`, `rewardProductsPage` (optional `search`), `rewardProduct`, `upsertRewardProduct`, `deleteRewardProduct`
+    - RewardOrders: `rewardOrdersByTenant`, `rewardOrdersByTenantPage`, `rewardOrdersByTenantCursor`, `rewardOrder`, `updateRewardOrderStatus`, `placeRewardOrder`
+    - RulesEngine: `pointsRulesByTenant`, `pointsRulesByTenantPage`, `invoicesByTenant`, `invoicesByTenantPage` (optional `search`), `invoicesByTenantCursor`
+  - `*Cursor` queries use keyset pagination with `after` + `take` and return `pageInfo { endCursor, hasNextPage }`.
 - REST (RulesEngine): `POST /api/v1/integration/invoices/apply`
   - Body: see `InvoiceUpsertRequest` in `src/api/Modules/RulesEngine/Application/Invoices/InvoiceUpsertRequest.cs`
   - Returns `202 Accepted` with a `correlationId` (processing is async via background worker).
@@ -90,7 +94,7 @@ dotnet ef migrations add <Name> --context RewardOrdersDbContext --output-dir Mod
 ```
 
 ## Notes / TODOs
-- Add pagination/limits to list queries in the admin UI and API (customers, users, invoices, products, rules, transactions).
+- List queries support page-based pagination via `page` + `pageSize` in GraphQL (admin UI consumes these).
 - Admin UI auth is a placeholder; secure GraphQL/REST with authentication/authorization.
 - Cross-context lookups use IDs; navigations across DbContexts are avoided to ease future extraction.
 - Ensure correlation IDs are provided for idempotent ledger operations (GraphQL and REST).

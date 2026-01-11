@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using Loyalty.Api.Modules.RewardCatalog.Domain;
 using Loyalty.Api.Modules.RewardCatalog.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.RewardCatalog.Application;
 
@@ -24,29 +25,26 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
             .ToListAsync(ct);
     }
 
-    public async Task<RewardProductPageResult> ListPageAsync(Guid? tenantId, int page, int pageSize, CancellationToken ct = default)
+    public async Task<PageResult<RewardProduct>> ListPageAsync(Guid? tenantId, int page, int pageSize, string? search = null, CancellationToken ct = default)
     {
-        var size = Math.Clamp(pageSize, 1, 200);
-        var safePage = Math.Max(page, 1);
-
-        var baseQuery = _db.RewardProducts.AsNoTracking();
+        var query = _db.RewardProducts.AsNoTracking();
         if (tenantId.HasValue)
-            baseQuery = baseQuery.Where(p => p.TenantId == tenantId.Value);
+            query = query.Where(p => p.TenantId == tenantId.Value);
 
-        var totalCount = await baseQuery.CountAsync(ct);
-        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)size);
-        if (totalPages > 0 && safePage > totalPages)
+        var term = search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
         {
-            safePage = totalPages;
+            var pattern = $"%{term}%";
+            query = query.Where(p =>
+                EF.Functions.ILike(p.Name, pattern) ||
+                EF.Functions.ILike(p.Sku, pattern) ||
+                (p.Gtin != null && EF.Functions.ILike(p.Gtin, pattern)) ||
+                EF.Functions.ILike(p.RewardVendor, pattern));
         }
 
-        var items = await baseQuery
-            .OrderBy(p => p.Name)
-            .Skip((safePage - 1) * size)
-            .Take(size)
-            .ToListAsync(ct);
+        query = query.OrderBy(p => p.Name);
 
-        return new RewardProductPageResult(items, totalCount, safePage, size, totalPages);
+        return await query.ToPageResultAsync(page, pageSize, ct);
     }
 
     public Task<List<RewardProduct>> SearchAsync(string search, Guid? tenantId = null, int take = 200, CancellationToken ct = default)
@@ -230,10 +228,3 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
     }
 
 }
-
-public record RewardProductPageResult(
-    IReadOnlyList<RewardProduct> Items,
-    int TotalCount,
-    int Page,
-    int PageSize,
-    int TotalPages);

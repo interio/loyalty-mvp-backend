@@ -2,6 +2,7 @@ using HotChocolate;
 using HotChocolate.Types;
 using Loyalty.Api.Modules.Tenants.Application;
 using Loyalty.Api.Modules.Tenants.Domain;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.Tenants.GraphQL;
 
@@ -22,7 +23,7 @@ public class TenantQueries
             var result = await tenants.ListPageAsync(page, pageSize);
             return new TenantConnection(
                 result.Items,
-                new TenantPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+                new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
         });
 
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
@@ -38,6 +39,4 @@ public class TenantQueries
     }
 }
 
-public record TenantConnection(IReadOnlyList<Tenant> Nodes, TenantPageInfo PageInfo);
-
-public record TenantPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
+public record TenantConnection(IReadOnlyList<Tenant> Nodes, PageInfo PageInfo);

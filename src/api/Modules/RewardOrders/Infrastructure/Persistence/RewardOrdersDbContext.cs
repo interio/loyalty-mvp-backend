@@ -24,6 +24,7 @@ public class RewardOrdersDbContext : DbContext
                 .WithOne()
                 .HasForeignKey(i => i.RewardOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.TenantId, x.CreatedAt });
             e.ToTable("RewardOrders");
         });
 

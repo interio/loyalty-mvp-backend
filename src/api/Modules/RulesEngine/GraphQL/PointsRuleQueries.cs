@@ -2,6 +2,7 @@ using HotChocolate;
 using HotChocolate.Types;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Domain;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.RulesEngine.GraphQL;
 
@@ -24,7 +25,7 @@ public class PointsRuleQueries
             var result = await rules.ListByTenantPageAsync(tenantId, page, pageSize);
             return new PointsRuleConnection(
                 result.Items,
-                new PointsRulePageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+                new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
         });
 
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
@@ -40,6 +41,4 @@ public class PointsRuleQueries
     }
 }
 
-public record PointsRuleConnection(IReadOnlyList<PointsRule> Nodes, PointsRulePageInfo PageInfo);
-
-public record PointsRulePageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
+public record PointsRuleConnection(IReadOnlyList<PointsRule> Nodes, PageInfo PageInfo);

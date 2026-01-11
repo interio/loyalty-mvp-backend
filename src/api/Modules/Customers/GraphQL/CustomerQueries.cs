@@ -2,6 +2,7 @@ using HotChocolate;
 using HotChocolate.Types;
 using Loyalty.Api.Modules.Customers.Application;
 using Loyalty.Api.Modules.Customers.Domain;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.Customers.GraphQL;
 
@@ -22,13 +23,14 @@ public class CustomerQueries
         Guid tenantId,
         int page,
         int pageSize,
+        string? search,
         [Service] ICustomerService customers) =>
         SafeExecute(async () =>
         {
-            var result = await customers.ListByTenantPageAsync(tenantId, page, pageSize);
+            var result = await customers.ListByTenantPageAsync(tenantId, page, pageSize, search);
             return new CustomerConnection(
                 result.Items,
-                new CustomerPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+                new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
         });
 
     /// <summary>Searches customers for a tenant using Postgres full-text search.</summary>
@@ -44,13 +46,14 @@ public class CustomerQueries
         Guid tenantId,
         int page,
         int pageSize,
+        string? search,
         [Service] IUserService users) =>
         SafeExecute(async () =>
         {
-            var result = await users.ListByTenantPageAsync(tenantId, page, pageSize);
+            var result = await users.ListByTenantPageAsync(tenantId, page, pageSize, search);
             return new UserConnection(
                 result.Items,
-                new UserPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+                new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
         });
 
     /// <summary>Searches users for a tenant.</summary>
@@ -74,10 +77,6 @@ public class CustomerQueries
     }
 }
 
-public record CustomerConnection(IReadOnlyList<Customer> Nodes, CustomerPageInfo PageInfo);
+public record CustomerConnection(IReadOnlyList<Customer> Nodes, PageInfo PageInfo);
 
-public record CustomerPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
-
-public record UserConnection(IReadOnlyList<User> Nodes, UserPageInfo PageInfo);
-
-public record UserPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
+public record UserConnection(IReadOnlyList<User> Nodes, PageInfo PageInfo);

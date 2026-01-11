@@ -2,6 +2,7 @@ using HotChocolate;
 using HotChocolate.Types;
 using Loyalty.Api.Modules.RewardOrders.Application;
 using Loyalty.Api.Modules.RewardOrders.Domain;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.RewardOrders.GraphQL;
 
@@ -25,7 +26,18 @@ public class RewardOrderQueries
             var result = await orders.ListByTenantPageAsync(tenantId, page, pageSize);
             return new RewardOrderConnection(
                 result.Items,
-                new RewardOrderPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+                new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+        });
+
+    public Task<RewardOrderCursorConnection> RewardOrdersByTenantCursor(
+        Guid tenantId,
+        int take,
+        string? after,
+        [Service] RewardOrderService orders) =>
+        SafeExecute(async () =>
+        {
+            var result = await orders.ListByTenantCursorAsync(tenantId, take, after);
+            return new RewardOrderCursorConnection(result.Items, new CursorPageInfo(result.EndCursor, result.HasNextPage));
         });
 
     public Task<RewardOrder?> RewardOrder(Guid tenantId, Guid id, [Service] RewardOrderService orders) =>
@@ -44,6 +56,6 @@ public class RewardOrderQueries
     }
 }
 
-public record RewardOrderConnection(IReadOnlyList<RewardOrder> Nodes, RewardOrderPageInfo PageInfo);
+public record RewardOrderConnection(IReadOnlyList<RewardOrder> Nodes, PageInfo PageInfo);
 
-public record RewardOrderPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
+public record RewardOrderCursorConnection(IReadOnlyList<RewardOrder> Nodes, CursorPageInfo PageInfo);

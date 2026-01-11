@@ -2,6 +2,7 @@ using HotChocolate;
 using HotChocolate.Types;
 using Loyalty.Api.Modules.Products.Application;
 using Loyalty.Api.Modules.Products.Domain;
+using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.Products.GraphQL;
 
@@ -14,13 +15,13 @@ public class ProductQueries
         SafeExecute(() => products.ListAsync());
 
     /// <summary>Pages products.</summary>
-    public Task<ProductConnection> ProductsPage(int page, int pageSize, [Service] ProductService products) =>
+    public Task<ProductConnection> ProductsPage(int page, int pageSize, string? search, [Service] ProductService products) =>
         SafeExecute(async () =>
         {
-            var result = await products.ListPageAsync(page, pageSize);
+            var result = await products.ListPageAsync(page, pageSize, search);
             return new ProductConnection(
                 result.Items,
-                new ProductPageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
+                new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
         });
 
     /// <summary>Searches products.</summary>
@@ -40,6 +41,4 @@ public class ProductQueries
     }
 }
 
-public record ProductConnection(IReadOnlyList<Product> Nodes, ProductPageInfo PageInfo);
-
-public record ProductPageInfo(int TotalCount, int Page, int PageSize, int TotalPages);
+public record ProductConnection(IReadOnlyList<Product> Nodes, PageInfo PageInfo);

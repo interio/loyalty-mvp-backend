@@ -16,6 +16,9 @@ public class InboundDocument
     /// <summary>External document id from ERP/MuleSoft.</summary>
     public string ExternalId { get; set; } = default!;
 
+    /// <summary>Customer external id (copied from invoice payload for searching).</summary>
+    public string? CustomerExternalId { get; set; }
+
     /// <summary>Document type (e.g., invoice).</summary>
     public string DocumentType { get; set; } = default!;
 
