@@ -59,12 +59,12 @@ By default listens on `http://localhost:8080` (or URLS override). In logs, look 
 - GraphQL: `POST /graphql`
   - Resolvers are registered per module; use module inputs:
     - Tenants: `createTenant`, `tenants`, `tenantsPage`
-    - Customers/Users: `createCustomer`, `createUser`, `customer`, `customersByTenant`, `customersByTenantPage` (optional `search`), `usersByCustomer`, `usersByTenant`, `usersByTenantPage` (optional `search`)
+    - Customers/Users: `createCustomer`, `createUser`, `customer`, `customersByTenant`, `customersByTenantPage` (optional `search`), `customersByTenantSearch`, `usersByCustomer`, `usersByTenant`, `usersByTenantPage` (optional `search`), `usersByTenantSearch`
     - Ledger: `redeemPoints`, `manualAdjustPoints`, `customerTransactions`
     - Products: `products`, `productsSearch`, `productsPage` (optional `search`)
     - RewardCatalog: `rewardProducts`, `rewardProductsSearch`, `rewardProductsPage` (optional `search`), `rewardProduct`, `upsertRewardProduct`, `deleteRewardProduct`
-    - RewardOrders: `rewardOrdersByTenant`, `rewardOrdersByTenantPage`, `rewardOrdersByTenantCursor`, `rewardOrder`, `updateRewardOrderStatus`, `placeRewardOrder`
-    - RulesEngine: `pointsRulesByTenant`, `pointsRulesByTenantPage`, `invoicesByTenant`, `invoicesByTenantPage` (optional `search`), `invoicesByTenantCursor`
+    - RewardOrders: `rewardOrdersByTenant`, `rewardOrdersByTenantPage`, `rewardOrdersByTenantCursor`, `rewardOrdersByCustomer`, `rewardOrder`, `updateRewardOrderStatus`, `placeRewardOrder`, `placeRewardOrderOnBehalf`
+    - RulesEngine: `pointsRulesByTenant`, `pointsRulesByTenantPage`, `invoicesByTenant` (with `take`), `invoicesByTenantPage` (optional `search`), `invoicesByTenantCursor` (optional `search`)
   - `*Cursor` queries use keyset pagination with `after` + `take` and return `pageInfo { endCursor, hasNextPage }`.
 - REST (RulesEngine): `POST /api/v1/integration/invoices/apply`
   - Body: see `InvoiceUpsertRequest` in `src/api/Modules/RulesEngine/Application/Invoices/InvoiceUpsertRequest.cs`
