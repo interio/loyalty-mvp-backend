@@ -10,27 +10,46 @@ namespace Loyalty.Api.Modules.RulesEngine.GraphQL;
 [ExtendObjectType(OperationTypeNames.Query)]
 public class RuleCatalogQueries
 {
-    public Task<List<RuleEntity>> RuleEntities([Service] IntegrationDbContext db) =>
+    public Task<List<RuleEntity>> RuleEntities(Guid? tenantId, [Service] IntegrationDbContext db) =>
         SafeExecute(async () =>
-            await db.RuleEntities
-                .AsNoTracking()
-                .Where(e => e.TenantId == null && e.IsActive)
-                .OrderBy(e => e.DisplayName)
-                .ToListAsync());
+        {
+            var query = db.RuleEntities.AsNoTracking();
+            if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+            {
+                query = query.Where(e => e.TenantId == null || e.TenantId == tenantId);
+            }
+
+            return await query
+                .OrderBy(e => e.Code)
+                .ThenBy(e => e.TenantId == null ? 1 : 0)
+                .ToListAsync();
+        });
 
     public Task<List<RuleAttribute>> RuleAttributes(
         string entityCode,
+        Guid? tenantId,
         [Service] IntegrationDbContext db) =>
         SafeExecute(async () =>
         {
             var code = entityCode.Trim();
             if (string.IsNullOrWhiteSpace(code)) return new List<RuleAttribute>();
 
+            var scopedTenantId = tenantId.HasValue && tenantId.Value != Guid.Empty ? tenantId : null;
+
             var entity = await db.RuleEntities
                 .AsNoTracking()
-                .Where(e => e.TenantId == null && e.IsActive && e.Code == code)
+                .Where(e => e.IsActive && e.Code == code && e.TenantId == scopedTenantId)
                 .Select(e => new { e.Id })
                 .FirstOrDefaultAsync();
+
+            if (entity is null)
+            {
+                entity = await db.RuleEntities
+                    .AsNoTracking()
+                    .Where(e => e.IsActive && e.Code == code && e.TenantId == null)
+                    .Select(e => new { e.Id })
+                    .FirstOrDefaultAsync();
+            }
 
             if (entity is null) return new List<RuleAttribute>();
 
