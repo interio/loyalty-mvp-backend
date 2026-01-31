@@ -38,7 +38,8 @@ builder.Services
   .AddTypeExtension<Loyalty.Api.Modules.RewardOrders.GraphQL.RewardOrderQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.RewardOrders.GraphQL.RewardOrderMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.PointsRuleQueries>()
-  .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.InvoiceQueries>();
+  .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.InvoiceQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.RuleCatalogQueries>();
 builder.Services.AddControllers();
 
 // Basic CORS for local admin UI (override with ALLOWED_ORIGINS env/comma list if needed).

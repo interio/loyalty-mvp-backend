@@ -15,6 +15,10 @@ public class IntegrationDbContext : DbContext
 
     public DbSet<InboundDocument> InboundDocuments => Set<InboundDocument>();
     public DbSet<PointsRule> PointsRules => Set<PointsRule>();
+    public DbSet<RuleEntity> RuleEntities => Set<RuleEntity>();
+    public DbSet<RuleAttribute> RuleAttributes => Set<RuleAttribute>();
+    public DbSet<RuleAttributeOperator> RuleAttributeOperators => Set<RuleAttributeOperator>();
+    public DbSet<RuleAttributeOption> RuleAttributeOptions => Set<RuleAttributeOption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +77,60 @@ public class IntegrationDbContext : DbContext
 
             e.HasIndex(x => new { x.TenantId, x.Active, x.Priority, x.EffectiveFrom });
             e.ToTable("PointsRules");
+        });
+
+        modelBuilder.Entity<RuleEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(100);
+            e.Property(x => x.DisplayName).IsRequired().HasMaxLength(200);
+            e.Property(x => x.IsActive).HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+            e.ToTable("RuleEntities");
+        });
+
+        modelBuilder.Entity<RuleAttribute>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(100);
+            e.Property(x => x.DisplayName).IsRequired().HasMaxLength(200);
+            e.Property(x => x.ValueType).IsRequired().HasMaxLength(50);
+            e.Property(x => x.UiControl).IsRequired().HasMaxLength(50);
+            e.Property(x => x.IsMultiValue).HasDefaultValue(false);
+            e.Property(x => x.IsQueryable).HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.HasOne(x => x.Entity)
+                .WithMany()
+                .HasForeignKey(x => x.EntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.EntityId, x.Code }).IsUnique();
+            e.ToTable("RuleAttributes");
+        });
+
+        modelBuilder.Entity<RuleAttributeOperator>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Operator).IsRequired().HasMaxLength(50);
+            e.HasOne(x => x.Attribute)
+                .WithMany()
+                .HasForeignKey(x => x.AttributeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.AttributeId, x.Operator }).IsUnique();
+            e.ToTable("RuleAttributeOperators");
+        });
+
+        modelBuilder.Entity<RuleAttributeOption>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Value).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Label).IsRequired().HasMaxLength(200);
+            e.HasOne(x => x.Attribute)
+                .WithMany()
+                .HasForeignKey(x => x.AttributeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.AttributeId, x.Value }).IsUnique();
+            e.ToTable("RuleAttributeOptions");
         });
     }
 
