@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Loyalty.Api.Modules.RulesEngine.GraphQL;
 
+using OperatorCatalog = Loyalty.Api.Modules.RulesEngine.Domain.RuleOperatorCatalog;
+
 /// <summary>Rule catalog metadata queries for the admin rule builder.</summary>
 [ExtendObjectType(OperationTypeNames.Query)]
 public class RuleCatalogQueries
@@ -79,6 +81,8 @@ public class RuleCatalogQueries
                 .Where(o => o.AttributeId == attributeId)
                 .OrderBy(o => o.Label)
                 .ToListAsync());
+
+    public IReadOnlyList<RuleOperatorInfo> RuleOperatorCatalog() => OperatorCatalog.Items;
 
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {
