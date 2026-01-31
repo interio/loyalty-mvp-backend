@@ -1,4 +1,3 @@
-using System.Text.Json;
 using HotChocolate;
 using HotChocolate.Types;
 using Loyalty.Api.Modules.LoyaltyLedger.Application;

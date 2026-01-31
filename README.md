@@ -14,7 +14,7 @@ This project is a modular monolith designed to be split into microservices later
 - `src/api/Modules/RulesEngine` — inbound invoices + rules; REST controller; IntegrationDbContext.
 - `src/api/Modules/Products` — product catalog for loyalty rules; REST + GraphQL; ProductsDbContext.
 - `src/api/Modules/RewardCatalog` — reward products + inventory snapshots; REST + GraphQL; RewardCatalogDbContext.
-- `src/api/Modules/RewardOrders` — reward redemption orders; REST + GraphQL; RewardOrdersDbContext.
+- `src/api/Modules/RewardOrders` — reward redemption orders; GraphQL; RewardOrdersDbContext.
 - `src/api/Modules/Shared` — shared paging helpers and common types used across modules.
 - GraphQL composition lives in `Program.cs` using module extensions.
 

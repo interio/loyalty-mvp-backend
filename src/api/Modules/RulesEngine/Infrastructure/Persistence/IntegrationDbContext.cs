@@ -2,7 +2,6 @@ using Loyalty.Api.Modules.RulesEngine.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Linq;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;

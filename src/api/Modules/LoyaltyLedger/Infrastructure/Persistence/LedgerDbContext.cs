@@ -4,7 +4,6 @@ using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 using Loyalty.Api.Modules.Tenants.Domain;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using System.Linq;
 
 namespace Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 

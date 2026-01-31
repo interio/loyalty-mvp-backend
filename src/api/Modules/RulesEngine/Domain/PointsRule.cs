@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using HotChocolate;
 using System.ComponentModel.DataAnnotations.Schema;
 
