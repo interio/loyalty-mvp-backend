@@ -28,6 +28,9 @@ public class PointsTransaction
     /// <summary>Optional actor email (used when no user id is available).</summary>
     public string? ActorEmail { get; set; }
 
+    /// <summary>Optional comment for manual adjustments.</summary>
+    public string? Comment { get; set; }
+
     /// <summary>Optional actor navigation.</summary>
     public User? ActorUser { get; set; }
 

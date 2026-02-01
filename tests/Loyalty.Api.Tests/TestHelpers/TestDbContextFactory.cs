@@ -76,6 +76,7 @@ public static class TestDbContextFactory
             "\"CustomerId\" uuid NOT NULL, " +
             "\"ActorUserId\" uuid NULL, " +
             "\"ActorEmail\" character varying(320) NULL, " +
+            "\"Comment\" character varying(1000) NULL, " +
             "\"Amount\" integer NOT NULL, " +
             "\"Reason\" character varying(200) NOT NULL, " +
             "\"CorrelationId\" character varying(200), " +

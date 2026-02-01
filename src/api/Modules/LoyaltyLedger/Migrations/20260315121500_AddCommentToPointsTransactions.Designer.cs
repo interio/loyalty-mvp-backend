@@ -3,6 +3,7 @@ using System;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
 {
     [DbContext(typeof(LedgerDbContext))]
-    partial class LedgerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260315121500_AddCommentToPointsTransactions")]
+    partial class AddCommentToPointsTransactions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -122,12 +125,12 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
 
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Comment")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid?>("ActorUserId")
-                        .HasColumnType("uuid");
 
                     b.Property<int>("Amount")
                         .HasColumnType("integer");
@@ -202,20 +205,6 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Migrations
                     b.Navigation("ActorUser");
 
                     b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("Loyalty.Api.Modules.Customers.Domain.Customer", b =>
-                {
-                    b.Navigation("PointsAccount");
-
-                    b.Navigation("Transactions");
-
-                    b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("Loyalty.Api.Modules.Customers.Domain.User", b =>
-                {
-                    b.Navigation("InitiatedTransactions");
                 });
 #pragma warning restore 612, 618
         }

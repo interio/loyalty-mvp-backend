@@ -13,6 +13,7 @@ public record ManualAdjustPointsCommand(
     Guid CustomerId,
     Guid? ActorUserId,
     string? ActorEmail,
+    string? Comment,
     int Amount,
     string Reason,
     string? CorrelationId);
@@ -102,6 +103,7 @@ public class LedgerService : ILedgerService
 
         // Debit points as a negative ledger entry.
         var delta = -command.Amount;
+
         if (IsRelational)
         {
             var strategy = _db.Database.CreateExecutionStrategy();
@@ -193,6 +195,8 @@ public class LedgerService : ILedgerService
             corr = null;
         }
 
+        var comment = string.IsNullOrWhiteSpace(command.Comment) ? null : command.Comment.Trim();
+
         if (IsRelational)
         {
             var strategy = _db.Database.CreateExecutionStrategy();
@@ -214,6 +218,7 @@ public class LedgerService : ILedgerService
                     CustomerId = command.CustomerId,
                     ActorUserId = command.ActorUserId,
                     ActorEmail = command.ActorEmail,
+                    Comment = comment,
                     Amount = command.Amount,
                     Reason = reason,
                     CorrelationId = corr
@@ -234,6 +239,7 @@ public class LedgerService : ILedgerService
             CustomerId = command.CustomerId,
             ActorUserId = command.ActorUserId,
             ActorEmail = command.ActorEmail,
+            Comment = comment,
             Amount = command.Amount,
             Reason = reason,
             CorrelationId = corr
