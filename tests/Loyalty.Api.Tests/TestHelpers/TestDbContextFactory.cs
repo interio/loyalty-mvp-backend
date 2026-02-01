@@ -90,6 +90,21 @@ public static class TestDbContextFactory
         return new ProductsDbContext(options);
     }
 
+    public static async Task EnsureProductsSchemaAsync(ProductsDbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE TABLE IF NOT EXISTS \"Products\" (" +
+            "\"Id\" uuid PRIMARY KEY, " +
+            "\"DistributorId\" uuid NOT NULL, " +
+            "\"Sku\" character varying(200) NOT NULL, " +
+            "\"Gtin\" character varying(50) NULL, " +
+            "\"Name\" character varying(400) NOT NULL, " +
+            "\"Cost\" numeric(18,2) NOT NULL, " +
+            "\"Attributes\" jsonb NOT NULL, " +
+            "\"CreatedAt\" timestamp with time zone NOT NULL, " +
+            "\"UpdatedAt\" timestamp with time zone NOT NULL)");
+    }
+
     public static IntegrationDbContext CreateIntegration(string connectionString)
     {
         var options = new DbContextOptionsBuilder<IntegrationDbContext>()

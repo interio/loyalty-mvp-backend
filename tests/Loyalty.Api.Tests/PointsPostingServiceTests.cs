@@ -8,6 +8,7 @@ using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Products.Infrastructure.Persistence;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
@@ -20,7 +21,7 @@ namespace Loyalty.Api.Tests;
 
 public class PointsPostingServiceTests
 {
-    private (LedgerDbContext ledger, CustomersDbContext customers, IntegrationDbContext integration) CreateContexts(string dbName)
+    private (LedgerDbContext ledger, CustomersDbContext customers, IntegrationDbContext integration, ProductsDbContext products) CreateContexts(string dbName)
     {
         var ledgerOptions = new DbContextOptionsBuilder<LedgerDbContext>()
             .UseInMemoryDatabase(dbName)
@@ -31,15 +32,21 @@ public class PointsPostingServiceTests
         var integrationOptions = new DbContextOptionsBuilder<IntegrationDbContext>()
             .UseInMemoryDatabase(dbName)
             .Options;
+        var productsOptions = new DbContextOptionsBuilder<ProductsDbContext>()
+            .UseInMemoryDatabase(dbName)
+            .Options;
 
-        return (new LedgerDbContext(ledgerOptions), new CustomersDbContext(customersOptions), new IntegrationDbContext(integrationOptions));
+        return (new LedgerDbContext(ledgerOptions),
+            new CustomersDbContext(customersOptions),
+            new IntegrationDbContext(integrationOptions),
+            new ProductsDbContext(productsOptions));
     }
 
     [Fact]
     public async Task ProcessPendingInvoices_IsIdempotent()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (ledger, customers, integration) = CreateContexts(dbName);
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
 
         var tenantId = Guid.NewGuid();
         var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
@@ -48,7 +55,7 @@ public class PointsPostingServiceTests
         ledger.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
         await ledger.SaveChangesAsync();
 
-        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        var service = new PointsPostingService(ledger, customers, integration, products, new HardcodedRulesProvider());
 
         var request = new InvoiceUpsertRequest
         {
@@ -77,7 +84,7 @@ public class PointsPostingServiceTests
     public async Task ProcessPendingInvoices_AllowsSameInvoiceIdAcrossTenants()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (ledger, customers, integration) = CreateContexts(dbName);
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
 
         var tenantA = Guid.NewGuid();
         var tenantB = Guid.NewGuid();
@@ -92,7 +99,7 @@ public class PointsPostingServiceTests
             new PointsAccount { CustomerId = customerB.Id, Balance = 0 });
         await ledger.SaveChangesAsync();
 
-        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        var service = new PointsPostingService(ledger, customers, integration, products, new HardcodedRulesProvider());
 
         var requestA = new InvoiceUpsertRequest
         {
@@ -131,7 +138,7 @@ public class PointsPostingServiceTests
     public async Task IngestInvoiceAsync_UpdatesExistingDocument()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (ledger, customers, integration) = CreateContexts(dbName);
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
 
         var tenantId = Guid.NewGuid();
         var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
@@ -140,7 +147,7 @@ public class PointsPostingServiceTests
         ledger.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
         await ledger.SaveChangesAsync();
 
-        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        var service = new PointsPostingService(ledger, customers, integration, products, new HardcodedRulesProvider());
 
         var request = new InvoiceUpsertRequest
         {
@@ -166,7 +173,7 @@ public class PointsPostingServiceTests
     public async Task AwardInvoiceAsync_ResolvesActorUserId()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (ledger, customers, integration) = CreateContexts(dbName);
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
 
         var tenantId = Guid.NewGuid();
         var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
@@ -185,7 +192,7 @@ public class PointsPostingServiceTests
         customers.Users.Add(actor);
         await customers.SaveChangesAsync();
 
-        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        var service = new PointsPostingService(ledger, customers, integration, products, new HardcodedRulesProvider());
 
         var request = new InvoiceUpsertRequest
         {
@@ -219,9 +226,9 @@ public class PointsPostingServiceTests
     public async Task AwardInvoiceAsync_ValidatesRequest()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (ledger, customers, integration) = CreateContexts(dbName);
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
 
-        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        var service = new PointsPostingService(ledger, customers, integration, products, new HardcodedRulesProvider());
 
         var request = new InvoiceUpsertRequest
         {
@@ -277,7 +284,7 @@ public class PointsPostingServiceTests
     public async Task AwardInvoiceAsync_ReturnsDuplicateWhenAlreadyPosted()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (ledger, customers, integration) = CreateContexts(dbName);
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
 
         var tenantId = Guid.NewGuid();
         var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
@@ -295,7 +302,7 @@ public class PointsPostingServiceTests
         });
         await ledger.SaveChangesAsync();
 
-        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        var service = new PointsPostingService(ledger, customers, integration, products, new HardcodedRulesProvider());
         var response = await service.AwardInvoiceAsync(new InvoiceUpsertRequest
         {
             TenantId = tenantId,
@@ -312,7 +319,7 @@ public class PointsPostingServiceTests
     public async Task ProcessPendingInvoicesAsync_MarksFailedOnError()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (ledger, customers, integration) = CreateContexts(dbName);
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
 
         var tenantId = Guid.NewGuid();
         integration.InboundDocuments.Add(new InboundDocument
@@ -325,7 +332,7 @@ public class PointsPostingServiceTests
         });
         await integration.SaveChangesAsync();
 
-        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        var service = new PointsPostingService(ledger, customers, integration, products, new HardcodedRulesProvider());
         await service.ProcessPendingInvoicesAsync(10);
 
         var doc = await integration.InboundDocuments.FirstAsync();
@@ -337,7 +344,7 @@ public class PointsPostingServiceTests
     public async Task AwardInvoiceAsync_WritesAppliedRulesSnapshot()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (ledger, customers, integration) = CreateContexts(dbName);
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
 
         var tenantId = Guid.NewGuid();
         var customer = new Customer { TenantId = tenantId, Name = "Cust", ExternalId = "CUST-1" };
@@ -350,7 +357,7 @@ public class PointsPostingServiceTests
             new SpendRule(100m, 10),
             new InvoiceRuleMetadata(Guid.NewGuid(), 1, "spend", 0, true, DateTimeOffset.UtcNow, null, JsonDocument.Parse("{}")));
 
-        var service = new PointsPostingService(ledger, customers, integration, new SingleRuleProvider(rule));
+        var service = new PointsPostingService(ledger, customers, integration, products, new SingleRuleProvider(rule));
         await service.AwardInvoiceAsync(new InvoiceUpsertRequest
         {
             TenantId = tenantId,
@@ -368,8 +375,8 @@ public class PointsPostingServiceTests
     public async Task ProcessPendingInvoicesAsync_IgnoresInvalidBatchSize()
     {
         var dbName = Guid.NewGuid().ToString();
-        var (ledger, customers, integration) = CreateContexts(dbName);
-        var service = new PointsPostingService(ledger, customers, integration, new HardcodedRulesProvider());
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
+        var service = new PointsPostingService(ledger, customers, integration, products, new HardcodedRulesProvider());
 
         await service.ProcessPendingInvoicesAsync(0);
     }

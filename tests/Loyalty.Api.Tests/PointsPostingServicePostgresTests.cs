@@ -7,6 +7,7 @@ using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Products.Infrastructure.Persistence;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
@@ -27,10 +28,12 @@ public class PointsPostingServicePostgresTests
         await using var ledger = TestDbContextFactory.CreateLedger(db.ConnectionString);
         await using var customers = TestDbContextFactory.CreateCustomers(db.ConnectionString);
         await using var integration = TestDbContextFactory.CreateIntegration(db.ConnectionString);
+        await using var products = TestDbContextFactory.CreateProducts(db.ConnectionString);
 
         await TestDbContextFactory.EnsureCustomersSchemaAsync(customers);
         await TestDbContextFactory.EnsureLedgerSchemaAsync(ledger);
         await TestDbContextFactory.EnsureIntegrationSchemaAsync(integration);
+        await TestDbContextFactory.EnsureProductsSchemaAsync(products);
 
         var tenantId = Guid.NewGuid();
         var customer = new Customer { TenantId = tenantId, Name = "Outlet", ExternalId = "EXT-1" };
@@ -59,7 +62,7 @@ public class PointsPostingServicePostgresTests
         });
         await integration.SaveChangesAsync();
 
-        var service = new PointsPostingService(ledger, customers, integration, new EmptyRuleProvider());
+        var service = new PointsPostingService(ledger, customers, integration, products, new EmptyRuleProvider());
         await service.ProcessPendingInvoicesAsync(10);
 
         var doc = await integration.InboundDocuments.FirstAsync();

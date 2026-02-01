@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Loyalty.Api.Modules.Customers.Application;
 using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Products.Infrastructure.Persistence;
 using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
 using Loyalty.Api.Modules.RulesEngine.Domain;
@@ -20,14 +21,21 @@ public class PointsPostingService
     private readonly LedgerDbContext _ledgerDb;
     private readonly CustomersDbContext _customersDb;
     private readonly IntegrationDbContext _integrationDb;
+    private readonly ProductsDbContext _productsDb;
     private readonly IInvoicePointsRuleProvider _rules;
 
     /// <summary>Creates the service.</summary>
-    public PointsPostingService(LedgerDbContext ledgerDb, CustomersDbContext customersDb, IntegrationDbContext integrationDb, IInvoicePointsRuleProvider rules)
+    public PointsPostingService(
+        LedgerDbContext ledgerDb,
+        CustomersDbContext customersDb,
+        IntegrationDbContext integrationDb,
+        ProductsDbContext productsDb,
+        IInvoicePointsRuleProvider rules)
     {
         _ledgerDb = ledgerDb;
         _customersDb = customersDb;
         _integrationDb = integrationDb;
+        _productsDb = productsDb;
         _rules = rules;
     }
 
@@ -262,6 +270,16 @@ public class PointsPostingService
         var total = 0;
         var appliedRules = new List<AppliedRuleSnapshot>();
         var rules = await _rules.GetRulesAsync(tenantId, ct);
+        var productRules = rules.OfType<IInvoicePointsRuleWithProductAttributes>().ToList();
+        if (productRules.Count > 0)
+        {
+            var productAttributesBySku = await LoadProductAttributesAsync(request, ct);
+            foreach (var rule in productRules)
+            {
+                rule.SetProductAttributes(productAttributesBySku);
+            }
+        }
+
         foreach (var rule in rules)
         {
             var points = rule.CalculatePoints(request);
@@ -283,6 +301,43 @@ public class PointsPostingService
             }
         }
         return (total, appliedRules);
+    }
+
+    private async Task<IReadOnlyDictionary<string, System.Text.Json.Nodes.JsonObject>> LoadProductAttributesAsync(
+        InvoiceUpsertRequest request,
+        CancellationToken ct)
+    {
+        var skus = request.Lines
+            .Select(line => line.Sku?.Trim())
+            .Where(sku => !string.IsNullOrWhiteSpace(sku))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (skus.Count == 0)
+        {
+            return new Dictionary<string, System.Text.Json.Nodes.JsonObject>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var normalizedSkus = skus.Select(sku => sku.ToUpperInvariant()).ToList();
+
+        var products = await _productsDb.Products
+            .AsNoTracking()
+            .Where(p => normalizedSkus.Contains(p.Sku.ToUpper()))
+            .ToListAsync(ct);
+
+        var map = new Dictionary<string, System.Text.Json.Nodes.JsonObject>(StringComparer.OrdinalIgnoreCase);
+        foreach (var product in products)
+        {
+            var key = product.Sku?.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+            if (!map.ContainsKey(key))
+            {
+                map[key] = product.Attributes ?? new System.Text.Json.Nodes.JsonObject();
+            }
+        }
+
+        return map;
     }
 
     private sealed record AppliedRuleSnapshot(

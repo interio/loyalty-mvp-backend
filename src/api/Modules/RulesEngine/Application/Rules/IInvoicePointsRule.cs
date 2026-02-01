@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 
 namespace Loyalty.Api.Modules.RulesEngine.Application.Rules;
@@ -11,6 +12,12 @@ public interface IInvoicePointsRule
 
     /// <summary>Compute points for the invoice (>=0).</summary>
     int CalculatePoints(InvoiceUpsertRequest invoice);
+}
+
+/// <summary>Rule that needs product attribute lookups.</summary>
+public interface IInvoicePointsRuleWithProductAttributes : IInvoicePointsRule
+{
+    void SetProductAttributes(IReadOnlyDictionary<string, JsonObject> attributesBySku);
 }
 
 /// <summary>Rule metadata for audit/traceability.</summary>
