@@ -18,6 +18,7 @@ public class LedgerMutations
         SafeExecute(() => ledger.AdjustAsync(new ManualAdjustPointsCommand(
             input.CustomerId,
             input.ActorUserId,
+            input.ActorEmail,
             input.Amount,
             PointsReasons.ManualAdjustment,
             input.CorrelationId)));
@@ -48,4 +49,4 @@ public record RedeemPointsInput(Guid CustomerId, Guid ActorUserId, int Amount, s
 /// <param name="ActorUserId">Optional user performing the adjustment.</param>
 /// <param name="Amount">Signed amount (positive to credit, negative to debit). Cannot be 0.</param>
 /// <param name="CorrelationId">Optional idempotency key.</param>
-public record ManualAdjustPointsInput(Guid CustomerId, Guid? ActorUserId, int Amount, string? CorrelationId);
+public record ManualAdjustPointsInput(Guid CustomerId, Guid? ActorUserId, string? ActorEmail, int Amount, string? CorrelationId);

@@ -9,7 +9,13 @@ namespace Loyalty.Api.Modules.LoyaltyLedger.Application;
 public record RedeemPointsCommand(Guid CustomerId, Guid ActorUserId, int Amount, string Reason, string? CorrelationId);
 
 /// <summary>Command for manual point adjustments (positive or negative).</summary>
-public record ManualAdjustPointsCommand(Guid CustomerId, Guid? ActorUserId, int Amount, string Reason, string? CorrelationId);
+public record ManualAdjustPointsCommand(
+    Guid CustomerId,
+    Guid? ActorUserId,
+    string? ActorEmail,
+    int Amount,
+    string Reason,
+    string? CorrelationId);
 
 /// <summary>Ledger application contract.</summary>
 public interface ILedgerService
@@ -207,6 +213,7 @@ public class LedgerService : ILedgerService
                 {
                     CustomerId = command.CustomerId,
                     ActorUserId = command.ActorUserId,
+                    ActorEmail = command.ActorEmail,
                     Amount = command.Amount,
                     Reason = reason,
                     CorrelationId = corr
@@ -226,6 +233,7 @@ public class LedgerService : ILedgerService
         {
             CustomerId = command.CustomerId,
             ActorUserId = command.ActorUserId,
+            ActorEmail = command.ActorEmail,
             Amount = command.Amount,
             Reason = reason,
             CorrelationId = corr

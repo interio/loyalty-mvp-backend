@@ -48,6 +48,7 @@ public class LedgerDbContext : DbContext
             e.HasKey(x => x.Id);
 
             e.Property(x => x.Reason).IsRequired().HasMaxLength(200);
+            e.Property(x => x.ActorEmail).HasMaxLength(320);
             e.Property(x => x.CorrelationId).HasMaxLength(200);
             e.Property(x => x.AppliedRules)
                 .HasConversion(

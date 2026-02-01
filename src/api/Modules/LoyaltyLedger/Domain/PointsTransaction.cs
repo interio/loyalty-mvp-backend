@@ -25,6 +25,9 @@ public class PointsTransaction
     /// </summary>
     public Guid? ActorUserId { get; set; }
 
+    /// <summary>Optional actor email (used when no user id is available).</summary>
+    public string? ActorEmail { get; set; }
+
     /// <summary>Optional actor navigation.</summary>
     public User? ActorUser { get; set; }
 
