@@ -29,7 +29,8 @@ public record InvoiceRuleMetadata(
     bool Active,
     DateTimeOffset EffectiveFrom,
     DateTimeOffset? EffectiveTo,
-    JsonDocument Conditions);
+    JsonDocument Conditions,
+    string? RuleName = null);
 
 /// <summary>Rule with metadata for audit logging.</summary>
 public interface IInvoicePointsRuleWithMetadata : IInvoicePointsRule

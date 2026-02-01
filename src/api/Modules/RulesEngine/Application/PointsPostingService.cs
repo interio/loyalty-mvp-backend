@@ -290,6 +290,7 @@ public class PointsPostingService
                 var conditionsNode = JsonNode.Parse(metaRule.Metadata.Conditions.RootElement.GetRawText()) as JsonObject ?? new JsonObject();
                 appliedRules.Add(new AppliedRuleSnapshot(
                     metaRule.Metadata.RuleId,
+                    metaRule.Metadata.RuleName ?? rule.Name,
                     metaRule.Metadata.RuleVersion,
                     metaRule.Metadata.RuleType,
                     metaRule.Metadata.Priority,
@@ -342,6 +343,7 @@ public class PointsPostingService
 
     private sealed record AppliedRuleSnapshot(
         Guid RuleId,
+        string RuleName,
         int RuleVersion,
         string RuleType,
         int Priority,

@@ -87,7 +87,8 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                         row.Active,
                         row.EffectiveFrom,
                         row.EffectiveTo,
-                        BuildConditionsDocument(rootConditions));
+                        BuildConditionsDocument(rootConditions),
+                        row.Name);
                     rules.Add(new MetadataInvoicePointsRule(parsed, metadata));
                 }
             }
