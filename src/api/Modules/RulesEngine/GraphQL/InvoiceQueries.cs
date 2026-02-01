@@ -83,6 +83,26 @@ public class InvoiceQueries
                 new PageInfo(totalCount, safePage, size, totalPages));
         });
 
+    /// <summary>Fetches a single invoice by internal id.</summary>
+    public Task<InboundInvoiceDto?> InvoiceById(
+        Guid tenantId,
+        Guid id,
+        [Service] IntegrationDbContext db,
+        [Service] CustomersDbContext customersDb,
+        [Service] LedgerDbContext ledgerDb) =>
+        SafeExecute(async () =>
+        {
+            var doc = await db.InboundDocuments
+                .AsNoTracking()
+                .Where(d => d.TenantId == tenantId && d.DocumentType == "invoice" && d.Id == id)
+                .FirstOrDefaultAsync();
+
+            if (doc is null) return null;
+
+            var items = await BuildInvoiceDtos(new List<InboundDocument> { doc }, tenantId, customersDb, ledgerDb);
+            return items.FirstOrDefault();
+        });
+
     /// <summary>Cursor-based invoice pagination for large datasets.</summary>
     public Task<InboundInvoiceCursorConnection> InvoicesByTenantCursor(
         Guid tenantId,
