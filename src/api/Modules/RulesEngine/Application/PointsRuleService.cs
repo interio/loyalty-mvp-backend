@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Linq;
 using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,8 @@ public class PointsRuleService
     public Task<List<PointsRule>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default) =>
         _db.PointsRules
            .AsNoTracking()
+           .Include(r => r.RootGroup)
+           .ThenInclude(g => g.Conditions)
            .Where(r => r.TenantId == tenantId)
            .OrderBy(r => r.Priority)
            .ThenBy(r => r.CreatedAt)
@@ -27,6 +30,8 @@ public class PointsRuleService
 
         var query = _db.PointsRules
            .AsNoTracking()
+           .Include(r => r.RootGroup)
+           .ThenInclude(g => g.Conditions)
            .Where(r => r.TenantId == tenantId)
            .OrderBy(r => r.Priority)
            .ThenBy(r => r.CreatedAt)
@@ -43,12 +48,12 @@ public class PointsRuleService
         var list = requests?.ToList() ?? new();
         if (list.Count == 0) throw new ArgumentException("At least one rule is required.");
 
+        using var tx = await _db.Database.BeginTransactionAsync(ct);
+        var staged = new List<(PointsRule Rule, RuleConditionGroup RootGroup, Dictionary<string, object?>? Conditions)>();
+
         foreach (var req in list)
         {
             Validate(req);
-            var conditions = req.Conditions is null
-                ? JsonDocument.Parse("{}")
-                : JsonSerializer.SerializeToDocument(req.Conditions);
 
             if (req.Id.HasValue)
             {
@@ -72,10 +77,55 @@ public class PointsRuleService
             rule.Priority = req.Priority;
             rule.EffectiveFrom = req.EffectiveFrom ?? DateTimeOffset.UtcNow;
             rule.EffectiveTo = req.EffectiveTo;
-            rule.Conditions = conditions;
+
+            var rootGroup = new RuleConditionGroup
+            {
+                Id = Guid.NewGuid(),
+                RuleId = rule.Id,
+                Logic = "AND",
+                SortOrder = 0,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            staged.Add((rule, rootGroup, req.Conditions));
         }
 
         await _db.SaveChangesAsync(ct);
+
+        foreach (var (rule, rootGroup, conditions) in staged)
+        {
+            _db.RuleConditionGroups.Add(rootGroup);
+
+            if (conditions is not null && conditions.Count > 0)
+            {
+                var sortOrder = 0;
+                foreach (var (key, value) in conditions.OrderBy(k => k.Key))
+                {
+                    var valueDoc = JsonSerializer.SerializeToDocument(value);
+                    _db.RuleConditions.Add(new RuleCondition
+                    {
+                        Id = Guid.NewGuid(),
+                        GroupId = rootGroup.Id,
+                        EntityCode = "rule",
+                        AttributeCode = key,
+                        Operator = "eq",
+                        ValueJson = valueDoc,
+                        SortOrder = sortOrder++,
+                        CreatedAt = DateTimeOffset.UtcNow
+                    });
+                }
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        foreach (var (rule, rootGroup, _) in staged)
+        {
+            rule.RootGroupId = rootGroup.Id;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     public async Task SetActiveAsync(Guid id, Guid tenantId, bool active, CancellationToken ct = default)

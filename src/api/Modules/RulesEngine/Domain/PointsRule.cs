@@ -1,6 +1,7 @@
-using System.Text.Json;
 using HotChocolate;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
+using System.Text.Json;
 
 namespace Loyalty.Api.Modules.RulesEngine.Domain;
 
@@ -11,7 +12,8 @@ public partial class PointsRule
     public Guid TenantId { get; set; }
     public string Name { get; set; } = default!;
     public string RuleType { get; set; } = default!;
-    [GraphQLIgnore] public JsonDocument Conditions { get; set; } = JsonDocument.Parse("{}");
+    public Guid? RootGroupId { get; set; }
+    [GraphQLIgnore] public RuleConditionGroup? RootGroup { get; set; }
     public bool Active { get; set; } = true;
     public int Priority { get; set; } = 0;
     public int RuleVersion { get; set; } = 1;
@@ -23,27 +25,22 @@ public partial class PointsRule
     /// <summary>Conditions exposed to GraphQL as key/value pairs.</summary>
     [NotMapped]
     [GraphQLName("conditions")]
-    public IReadOnlyList<RuleConditionEntry> ConditionEntries => ToEntries(Conditions);
+    public IReadOnlyList<RuleConditionEntry> ConditionEntries => ToEntries(RootGroup);
 }
 
 public record RuleConditionEntry(string Key, string? Value);
 
 public partial class PointsRule
 {
-    private static IReadOnlyList<RuleConditionEntry> ToEntries(JsonDocument doc)
+    private static IReadOnlyList<RuleConditionEntry> ToEntries(RuleConditionGroup? rootGroup)
     {
-        var list = new List<RuleConditionEntry>();
-        if (doc == null) return list;
+        if (rootGroup?.Conditions is null || rootGroup.Conditions.Count == 0)
+            return Array.Empty<RuleConditionEntry>();
 
-        var root = doc.RootElement;
-        if (root.ValueKind != JsonValueKind.Object) return list;
-
-        foreach (var prop in root.EnumerateObject())
-        {
-            list.Add(new RuleConditionEntry(prop.Name, ToScalarString(prop.Value)));
-        }
-
-        return list;
+        return rootGroup.Conditions
+            .OrderBy(c => c.SortOrder)
+            .Select(c => new RuleConditionEntry(c.AttributeCode, ToScalarString(c.ValueJson.RootElement)))
+            .ToList();
     }
 
     private static string? ToScalarString(JsonElement el)

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Linq;
 using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +25,8 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
         var now = DateTimeOffset.UtcNow;
         var rows = await _db.PointsRules
             .AsNoTracking()
+            .Include(r => r.RootGroup)
+            .ThenInclude(g => g.Conditions)
             .Where(r =>
                 r.TenantId == tenantId &&
                 r.Active &&
@@ -40,7 +44,6 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                 var parsed = ParseRule(row);
                 if (parsed != null)
                 {
-                    var conditionsJson = row.Conditions?.RootElement.GetRawText() ?? "{}";
                     var metadata = new InvoiceRuleMetadata(
                         row.Id,
                         row.RuleVersion,
@@ -49,7 +52,7 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                         row.Active,
                         row.EffectiveFrom,
                         row.EffectiveTo,
-                        JsonDocument.Parse(conditionsJson));
+                        BuildConditionsDocument(row));
                     rules.Add(new MetadataInvoicePointsRule(parsed, metadata));
                 }
             }
@@ -64,19 +67,19 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
 
     private static IInvoicePointsRule? ParseRule(PointsRule rule)
     {
-        if (rule.Conditions is null)
+        var conditionMap = BuildConditionMap(rule);
+        if (conditionMap.Count == 0)
             return null;
 
         var type = rule.RuleType.Trim().ToLowerInvariant();
-        var root = rule.Conditions.RootElement;
 
         switch (type)
         {
             case "spend":
             case "spend_rule":
                 {
-                    var spendStep = GetDecimal(root, "spendStep");
-                    var rewardPoints = GetInt(root, "rewardPoints");
+                    var spendStep = GetDecimal(conditionMap, "spendStep");
+                    var rewardPoints = GetInt(conditionMap, "rewardPoints");
                     if (spendStep <= 0 || rewardPoints <= 0)
                         throw new ArgumentException("Spend rule requires spendStep > 0 and rewardPoints > 0.");
                     return new SpendRule(spendStep, rewardPoints);
@@ -84,9 +87,9 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
             case "sku_quantity":
             case "sku_quantity_rule":
                 {
-                    var sku = GetString(root, "sku");
-                    var quantityStep = GetDecimal(root, "quantityStep");
-                    var rewardPoints = GetInt(root, "rewardPoints");
+                    var sku = GetString(conditionMap, "sku");
+                    var quantityStep = GetDecimal(conditionMap, "quantityStep");
+                    var rewardPoints = GetInt(conditionMap, "rewardPoints");
                     if (string.IsNullOrWhiteSpace(sku) || quantityStep <= 0 || rewardPoints <= 0)
                         throw new ArgumentException("Sku quantity rule requires sku, quantityStep > 0, rewardPoints > 0.");
                     return new SkuQuantityRule(sku, quantityStep, rewardPoints);
@@ -96,35 +99,42 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
         }
     }
 
-    private static int GetInt(JsonElement root, string name)
+    private static IReadOnlyDictionary<string, string?> BuildConditionMap(PointsRule rule)
     {
-        if (!root.TryGetProperty(name, out var prop)) return 0;
-        return prop.ValueKind switch
-        {
-            JsonValueKind.Number when prop.TryGetInt32(out var v) => v,
-            JsonValueKind.String when int.TryParse(prop.GetString(), out var v) => v,
-            _ => 0
-        };
+        return rule.ConditionEntries
+            .GroupBy(entry => entry.Key)
+            .ToDictionary(entry => entry.Key, entry => entry.First().Value);
     }
 
-    private static decimal GetDecimal(JsonElement root, string name)
+    private static int GetInt(IReadOnlyDictionary<string, string?> map, string name)
     {
-        if (!root.TryGetProperty(name, out var prop)) return 0;
-        return prop.ValueKind switch
-        {
-            JsonValueKind.Number when prop.TryGetDecimal(out var v) => v,
-            JsonValueKind.String when decimal.TryParse(prop.GetString(), out var v) => v,
-            _ => 0
-        };
+        if (!map.TryGetValue(name, out var raw) || string.IsNullOrWhiteSpace(raw)) return 0;
+        return int.TryParse(raw, out var value) ? value : 0;
     }
 
-    private static string GetString(JsonElement root, string name)
+    private static decimal GetDecimal(IReadOnlyDictionary<string, string?> map, string name)
     {
-        if (!root.TryGetProperty(name, out var prop)) return string.Empty;
-        return prop.ValueKind switch
+        if (!map.TryGetValue(name, out var raw) || string.IsNullOrWhiteSpace(raw)) return 0;
+        return decimal.TryParse(raw, out var value) ? value : 0;
+    }
+
+    private static string GetString(IReadOnlyDictionary<string, string?> map, string name)
+    {
+        if (!map.TryGetValue(name, out var raw) || string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        return raw;
+    }
+
+    private static JsonDocument BuildConditionsDocument(PointsRule rule)
+    {
+        var obj = new JsonObject();
+        if (rule.RootGroup?.Conditions is not null)
         {
-            JsonValueKind.String => prop.GetString() ?? string.Empty,
-            _ => prop.ToString()
-        };
+            foreach (var condition in rule.RootGroup.Conditions.OrderBy(c => c.SortOrder))
+            {
+                obj[condition.AttributeCode] = JsonNode.Parse(condition.ValueJson.RootElement.GetRawText());
+            }
+        }
+
+        return JsonDocument.Parse(obj.ToJsonString());
     }
 }

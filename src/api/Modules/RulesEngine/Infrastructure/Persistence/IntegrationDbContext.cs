@@ -15,6 +15,8 @@ public class IntegrationDbContext : DbContext
 
     public DbSet<InboundDocument> InboundDocuments => Set<InboundDocument>();
     public DbSet<PointsRule> PointsRules => Set<PointsRule>();
+    public DbSet<RuleConditionGroup> RuleConditionGroups => Set<RuleConditionGroup>();
+    public DbSet<RuleCondition> RuleConditions => Set<RuleCondition>();
     public DbSet<RuleEntity> RuleEntities => Set<RuleEntity>();
     public DbSet<RuleAttribute> RuleAttributes => Set<RuleAttribute>();
     public DbSet<RuleAttributeOperator> RuleAttributeOperators => Set<RuleAttributeOperator>();
@@ -68,15 +70,56 @@ public class IntegrationDbContext : DbContext
             e.Property(x => x.RuleVersion).HasDefaultValue(1);
             e.Property(x => x.EffectiveFrom).IsRequired();
             e.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            e.Property(x => x.Conditions)
-                .HasConversion(
-                    v => v == null ? "{}" : JsonSerializer.Serialize(v, JsonComparerOptions),
-                    v => JsonDocument.Parse(v ?? "{}", default))
-                .HasColumnType("jsonb")
-                .Metadata.SetValueComparer(docComparer);
+            e.Property(x => x.RootGroupId);
+            e.HasOne(x => x.RootGroup)
+                .WithMany()
+                .HasForeignKey(x => x.RootGroupId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             e.HasIndex(x => new { x.TenantId, x.Active, x.Priority, x.EffectiveFrom });
             e.ToTable("PointsRules");
+        });
+
+        modelBuilder.Entity<RuleConditionGroup>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Logic).IsRequired().HasMaxLength(3);
+            e.Property(x => x.SortOrder).HasDefaultValue(0);
+            e.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.HasOne(x => x.Rule)
+                .WithMany()
+                .HasForeignKey(x => x.RuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ParentGroup)
+                .WithMany(x => x.ChildGroups)
+                .HasForeignKey(x => x.ParentGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.RuleId);
+            e.HasIndex(x => x.ParentGroupId);
+            e.ToTable("RuleConditionGroups");
+        });
+
+        modelBuilder.Entity<RuleCondition>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.EntityCode).IsRequired().HasMaxLength(100);
+            e.Property(x => x.AttributeCode).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Operator).IsRequired().HasMaxLength(20);
+            e.Property(x => x.SortOrder).HasDefaultValue(0);
+            e.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.Property(x => x.ValueJson)
+                .HasConversion(
+                    v => v == null ? "null" : JsonSerializer.Serialize(v, JsonComparerOptions),
+                    v => JsonDocument.Parse(v ?? "null", default))
+                .HasColumnType("jsonb")
+                .Metadata.SetValueComparer(docComparer);
+            e.HasOne(x => x.Group)
+                .WithMany(x => x.Conditions)
+                .HasForeignKey(x => x.GroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.GroupId);
+            e.HasIndex(x => new { x.EntityCode, x.AttributeCode });
+            e.ToTable("RuleConditions");
         });
 
         modelBuilder.Entity<RuleEntity>(e =>
