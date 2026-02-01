@@ -28,6 +28,20 @@ public class PointsRuleQueries
                 new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
         });
 
+    /// <summary>Gets the nested condition tree for a rule.</summary>
+    public Task<RuleConditionTreeGroup> RuleConditionTree(
+        Guid ruleId,
+        Guid tenantId,
+        [Service] PointsRuleService rules) =>
+        SafeExecute(() => rules.GetConditionTreeAsync(ruleId, tenantId));
+
+    /// <summary>Gets a flat condition tree payload for a rule.</summary>
+    public Task<RuleConditionTreeFlat> RuleConditionTreeFlat(
+        Guid ruleId,
+        Guid tenantId,
+        [Service] PointsRuleService rules) =>
+        SafeExecute(() => rules.GetConditionTreeFlatAsync(ruleId, tenantId));
+
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {
         try

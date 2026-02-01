@@ -26,7 +26,7 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
         var rows = await _db.PointsRules
             .AsNoTracking()
             .Include(r => r.RootGroup)
-            .ThenInclude(g => g.Conditions)
+            .ThenInclude(g => g!.Conditions)
             .Where(r =>
                 r.TenantId == tenantId &&
                 r.Active &&
@@ -94,6 +94,9 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                         throw new ArgumentException("Sku quantity rule requires sku, quantityStep > 0, rewardPoints > 0.");
                     return new SkuQuantityRule(sku, quantityStep, rewardPoints);
                 }
+            case "complex_rule":
+            case "complex":
+                return null;
             default:
                 throw new ArgumentException($"Unsupported rule type: {rule.RuleType}");
         }

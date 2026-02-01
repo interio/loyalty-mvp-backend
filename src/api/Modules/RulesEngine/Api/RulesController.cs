@@ -41,6 +41,30 @@ public class RulesController : ControllerBase
         }
     }
 
+    [HttpPost("complex")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> CreateComplexRule([FromBody] ComplexRuleCreateRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var id = await _service.CreateComplexRuleAsync(request, ct);
+            return Ok(new { id });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            if (_env.IsDevelopment())
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.ToString());
+
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unexpected error.");
+        }
+    }
+
     [HttpPut("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
