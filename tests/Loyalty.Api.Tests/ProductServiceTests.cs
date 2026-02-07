@@ -19,12 +19,14 @@ public class ProductServiceTests
         await using var db = new ProductsDbContext(options);
         var service = new ProductService(db);
 
+        var tenantId = Guid.NewGuid();
         var distributor = Guid.NewGuid();
 
         await service.UpsertAsync(new[]
         {
             new ProductUpsertRequest
             {
+                TenantId = tenantId,
                 DistributorId = distributor,
                 Sku = "SKU-1",
                 Name = "First",
@@ -37,6 +39,7 @@ public class ProductServiceTests
         {
             new ProductUpsertRequest
             {
+                TenantId = tenantId,
                 DistributorId = distributor,
                 Sku = "SKU-1",
                 Name = "Updated",

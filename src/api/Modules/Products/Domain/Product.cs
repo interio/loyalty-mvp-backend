@@ -5,13 +5,16 @@ using HotChocolate;
 namespace Loyalty.Api.Modules.Products.Domain;
 
 /// <summary>
-/// Product definition scoped to a distributor (ERP master). Supports extensible attributes for future rules.
+/// Product definition scoped to tenant and distributor (ERP master). Supports extensible attributes for future rules.
 /// </summary>
 public class Product
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    /// <summary>Distributor (or tenant-level) identifier from ERP.</summary>
+    /// <summary>Tenant that owns this product catalog entry.</summary>
+    public Guid TenantId { get; set; }
+
+    /// <summary>Distributor identifier from ERP (tenant-scoped).</summary>
     public Guid DistributorId { get; set; }
 
     /// <summary>ERP SKU/code (may overlap across distributors).</summary>

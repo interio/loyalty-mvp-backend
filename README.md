@@ -71,7 +71,7 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
     - Tenants: `createTenant`, `tenants`, `tenantsPage`
     - Customers/Users: `createCustomer`, `createUser`, `customer`, `customersByTenant`, `customersByTenantPage` (optional `search`), `customersByTenantSearch`, `usersByCustomer`, `usersByTenant`, `usersByTenantPage` (optional `search`), `usersByTenantSearch`
     - Ledger: `redeemPoints`, `manualAdjustPoints`, `customerTransactions`
-    - Products: `products`, `productsSearch`, `productsPage` (optional `search`)
+    - Products: `products` (required `tenantId`), `productsSearch` (required `tenantId` + `search`), `productsPage` (required `tenantId`, optional `search`) - when authenticated, `tenantId` must match tenant claim
     - RewardCatalog: `rewardProducts`, `rewardProductsSearch`, `rewardProductsPage` (optional `search`), `rewardProduct`, `upsertRewardProduct`, `deleteRewardProduct`
     - RewardOrders: `rewardOrdersByTenant`, `rewardOrdersByTenantPage`, `rewardOrdersByTenantCursor`, `rewardOrdersByCustomer`, `rewardOrder`, `updateRewardOrderStatus`, `placeRewardOrder`, `placeRewardOrderOnBehalf`
     - RulesEngine: `pointsRulesByTenant`, `pointsRulesByTenantPage`, `ruleConditionTree`, `ruleConditionTreeFlat`, `invoicesByTenant` (with `take`), `invoicesByTenantPage` (optional `search`), `invoiceById`, `invoicesByTenantCursor` (optional `search`)
@@ -82,7 +82,7 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
   - Returns `202 Accepted` with a `correlationId` (processing is async via background worker).
 - REST (RulesEngine rules): `POST /api/v1/rules/points/upsert` (batch insert of versioned rules), `POST /api/v1/rules/points/complex`, `PUT /api/v1/rules/points/{id}` (tenantId + active only), `DELETE /api/v1/rules/points/{id}?tenantId=...`
   - Existing rules are immutable; create a new rule version instead of editing an existing one.
-- REST (Products): `POST /api/v1/products/upsert`
+- REST (Products): `POST /api/v1/products/upsert` (`tenantId` and `distributorId` are required per product item; when authenticated, payload tenant must match tenant claim)
 - REST (RewardCatalog): `POST /api/v1/rewards/catalog/upsert`, `POST /api/v1/rewards/catalog/upload` (CSV)
 - RewardOrders are available via GraphQL mutations/queries (see `RewardOrderMutations` and `RewardOrderQueries`).
 

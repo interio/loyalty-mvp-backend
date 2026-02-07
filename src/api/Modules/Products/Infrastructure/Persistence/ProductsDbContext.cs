@@ -23,6 +23,7 @@ public class ProductsDbContext : DbContext
         modelBuilder.Entity<Product>(e =>
         {
             e.HasKey(x => x.Id);
+            e.Property(x => x.TenantId).IsRequired();
             e.Property(x => x.Sku).IsRequired().HasMaxLength(200);
             e.Property(x => x.Gtin).HasMaxLength(50);
             e.Property(x => x.Name).IsRequired().HasMaxLength(400);
@@ -34,13 +35,13 @@ public class ProductsDbContext : DbContext
                     v => JsonSerializer.Deserialize<JsonObject>(v, new JsonSerializerOptions())!)
                 .Metadata.SetValueComparer(comparer);
 
-            // Enforce uniqueness:
-            // - Distributor + SKU where GTIN is null (natural key without GTIN).
-            // - Distributor + SKU + GTIN where GTIN is provided.
-            e.HasIndex(x => new { x.DistributorId, x.Sku, x.Gtin })
+            // Enforce uniqueness per tenant:
+            // - Tenant + Distributor + SKU where GTIN is null.
+            // - Tenant + Distributor + SKU + GTIN where GTIN is provided.
+            e.HasIndex(x => new { x.TenantId, x.DistributorId, x.Sku, x.Gtin })
                 .IsUnique()
                 .HasFilter("\"Gtin\" IS NOT NULL");
-            e.HasIndex(x => new { x.DistributorId, x.Sku })
+            e.HasIndex(x => new { x.TenantId, x.DistributorId, x.Sku })
                 .IsUnique()
                 .HasFilter("\"Gtin\" IS NULL");
             e.ToTable("Products");

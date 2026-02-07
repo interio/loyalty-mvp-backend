@@ -97,6 +97,7 @@ public static class TestDbContextFactory
         await db.Database.ExecuteSqlRawAsync(
             "CREATE TABLE IF NOT EXISTS \"Products\" (" +
             "\"Id\" uuid PRIMARY KEY, " +
+            "\"TenantId\" uuid NOT NULL, " +
             "\"DistributorId\" uuid NOT NULL, " +
             "\"Sku\" character varying(200) NOT NULL, " +
             "\"Gtin\" character varying(50) NULL, " +
@@ -105,6 +106,12 @@ public static class TestDbContextFactory
             "\"Attributes\" jsonb NOT NULL, " +
             "\"CreatedAt\" timestamp with time zone NOT NULL, " +
             "\"UpdatedAt\" timestamp with time zone NOT NULL)");
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_Products_TenantId_DistributorId_Sku\" " +
+            "ON \"Products\" (\"TenantId\", \"DistributorId\", \"Sku\") WHERE \"Gtin\" IS NULL");
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_Products_TenantId_DistributorId_Sku_Gtin\" " +
+            "ON \"Products\" (\"TenantId\", \"DistributorId\", \"Sku\", \"Gtin\") WHERE \"Gtin\" IS NOT NULL");
     }
 
     public static IntegrationDbContext CreateIntegration(string connectionString)

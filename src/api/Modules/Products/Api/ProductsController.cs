@@ -19,7 +19,7 @@ public class ProductsController : ControllerBase
         _env = env;
     }
 
-    /// <summary>Upserts a batch of products for a distributor.</summary>
+    /// <summary>Upserts a batch of products for a tenant/distributor scope.</summary>
     [HttpPost("upsert")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -28,12 +28,17 @@ public class ProductsController : ControllerBase
     {
         try
         {
+            ProductTenantScopeResolver.EnsureBatchMatchesTenant(request.Products, HttpContext.User);
             await _service.UpsertAsync(request.Products, ct);
             return Ok();
         }
         catch (ArgumentException ex)
         {
             return BadRequest(ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ex.Message);
         }
         catch (Exception ex)
         {

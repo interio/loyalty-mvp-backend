@@ -5,6 +5,7 @@ namespace Loyalty.Api.Modules.Products.Application;
 /// <summary>Single product upsert payload.</summary>
 public class ProductUpsertRequest
 {
+    [Required] public Guid TenantId { get; set; }
     [Required] public Guid DistributorId { get; set; }
     [Required] public string Sku { get; set; } = default!;
     [Required] public string Name { get; set; } = default!;

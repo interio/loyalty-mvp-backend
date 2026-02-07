@@ -6,7 +6,7 @@ using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.Products.Application;
 
-/// <summary>Product ingestion service (ERP-backed catalog per distributor).</summary>
+/// <summary>Product ingestion service (ERP-backed catalog per tenant/distributor).</summary>
 public class ProductService
 {
     private readonly ProductsDbContext _db;
@@ -14,17 +14,27 @@ public class ProductService
     public ProductService(ProductsDbContext db) => _db = db;
 
     /// <summary>List products.</summary>
-    public Task<List<Product>> ListAsync(int take = 500, CancellationToken ct = default) =>
-        _db.Products
+    public Task<List<Product>> ListAsync(Guid tenantId, int take = 500, CancellationToken ct = default)
+    {
+        EnsureTenant(tenantId);
+        return _db.Products
             .AsNoTracking()
+            .Where(p => p.TenantId == tenantId)
             .OrderBy(p => p.Name)
             .Take(take)
             .ToListAsync(ct);
+    }
 
     /// <summary>Page products.</summary>
-    public async Task<PageResult<Product>> ListPageAsync(int page, int pageSize, string? search = null, CancellationToken ct = default)
+    public async Task<PageResult<Product>> ListPageAsync(
+        Guid tenantId,
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken ct = default)
     {
-        var query = _db.Products.AsNoTracking();
+        EnsureTenant(tenantId);
+        var query = _db.Products.AsNoTracking().Where(p => p.TenantId == tenantId);
 
         var term = search?.Trim();
         if (!string.IsNullOrWhiteSpace(term))
@@ -42,8 +52,9 @@ public class ProductService
     }
 
     /// <summary>Search products.</summary>
-    public Task<List<Product>> SearchAsync(string search, int take = 200, CancellationToken ct = default)
+    public Task<List<Product>> SearchAsync(Guid tenantId, string search, int take = 200, CancellationToken ct = default)
     {
+        EnsureTenant(tenantId);
         var term = search?.Trim();
         if (string.IsNullOrWhiteSpace(term)) return Task.FromResult(new List<Product>());
 
@@ -51,6 +62,7 @@ public class ProductService
 
         return _db.Products
            .AsNoTracking()
+           .Where(p => p.TenantId == tenantId)
            .Where(p =>
                 EF.Functions.ILike(p.Name, pattern) ||
                 EF.Functions.ILike(p.Sku, pattern) ||
@@ -79,7 +91,10 @@ public class ProductService
         var trimmedGtin = string.IsNullOrWhiteSpace(req.Gtin) ? null : req.Gtin.Trim();
 
         var query = _db.Products
-            .Where(p => p.DistributorId == req.DistributorId && p.Sku == trimmedSku);
+            .Where(p =>
+                p.TenantId == req.TenantId &&
+                p.DistributorId == req.DistributorId &&
+                p.Sku == trimmedSku);
 
         if (!string.IsNullOrWhiteSpace(trimmedGtin))
             query = query.Where(p => p.Gtin == trimmedGtin);
@@ -90,6 +105,7 @@ public class ProductService
         {
             product = new Product
             {
+                TenantId = req.TenantId,
                 DistributorId = req.DistributorId,
                 Sku = trimmedSku,
                 Gtin = trimmedGtin,
@@ -113,10 +129,16 @@ public class ProductService
 
     private static void Validate(ProductUpsertRequest req)
     {
+        EnsureTenant(req.TenantId);
         if (req.DistributorId == Guid.Empty) throw new ArgumentException("DistributorId is required.");
         if (string.IsNullOrWhiteSpace(req.Sku)) throw new ArgumentException("Sku is required.");
         if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("Name is required.");
         if (req.Cost < 0) throw new ArgumentException("Cost cannot be negative.");
+    }
+
+    private static void EnsureTenant(Guid tenantId)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
     }
 
     private static JsonObject ToJson(Dictionary<string, object?>? dict)

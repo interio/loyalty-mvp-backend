@@ -273,7 +273,7 @@ public class PointsPostingService
         var productRules = rules.OfType<IInvoicePointsRuleWithProductAttributes>().ToList();
         if (productRules.Count > 0)
         {
-            var productAttributesBySku = await LoadProductAttributesAsync(request, ct);
+            var productAttributesBySku = await LoadProductAttributesAsync(tenantId, request, ct);
             foreach (var rule in productRules)
             {
                 rule.SetProductAttributes(productAttributesBySku);
@@ -305,6 +305,7 @@ public class PointsPostingService
     }
 
     private async Task<IReadOnlyDictionary<string, System.Text.Json.Nodes.JsonObject>> LoadProductAttributesAsync(
+        Guid tenantId,
         InvoiceUpsertRequest request,
         CancellationToken ct)
     {
@@ -323,7 +324,7 @@ public class PointsPostingService
 
         var products = await _productsDb.Products
             .AsNoTracking()
-            .Where(p => normalizedSkus.Contains(p.Sku.ToUpper()))
+            .Where(p => p.TenantId == tenantId && normalizedSkus.Contains(p.Sku.ToUpper()))
             .ToListAsync(ct);
 
         var map = new Dictionary<string, System.Text.Json.Nodes.JsonObject>(StringComparer.OrdinalIgnoreCase);
