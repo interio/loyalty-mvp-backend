@@ -1,10 +1,11 @@
-# Loyalty B2B Modular Monolith (MVP)
+# Loyalty B2B Headless Backend
 
-This project is a modular monolith designed to be split into microservices later. Modules are isolated by contexts (Tenants, Customers/Users, Ledger, RulesEngine/Integration, Products, GraphQL).
+This project is a headless modular backend service designed to be split into microservices later. Modules are isolated by contexts (Tenants, Customers/Users, Ledger, RulesEngine/Integration, Products, GraphQL).
 
 ## Requirements
 - .NET 8 SDK
 - PostgreSQL (set `ConnectionStrings__Default`; Docker uses `Host=postgres;Port=5432;Database=loyalty;Username=loyalty;Password=loyalty`)
+- Optional: set `ALLOWED_ORIGINS` (comma-separated, or `*`) to control API CORS policy.
 - Node/PNPM not required (GraphQL served by Hot Chocolate in ASP.NET Core)
 
 ## Module structure
@@ -35,6 +36,10 @@ Set `ConnectionStrings__Default` env var (required; `appsettings*.json` do not i
 ```
 export ConnectionStrings__Default="Host=postgres;Port=5432;Database=loyalty;Username=loyalty;Password=loyalty"
 ```
+Optional CORS override:
+```
+export ALLOWED_ORIGINS="http://localhost:3000,http://127.0.0.1:3000"
+```
 
 ## Database setup (per-context migrations)
 Run from repo root:
@@ -53,7 +58,12 @@ dotnet ef database update --context RewardOrdersDbContext
 ```
 dotnet run --project src/api/Loyalty.Api.csproj
 ```
-By default listens on `http://localhost:8080` (or URLS override). In logs, look for the bound URL.
+Local `dotnet run` / `dotnet watch` uses the launch profile from `src/api/Properties/launchSettings.json` (`http://localhost:5137`).
+Docker/Compose sets `ASPNETCORE_URLS=http://0.0.0.0:8080`.
+To force port 8080 locally:
+```
+ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.csproj
+```
 
 ## Endpoints
 - GraphQL: `POST /graphql`
@@ -64,13 +74,14 @@ By default listens on `http://localhost:8080` (or URLS override). In logs, look 
     - Products: `products`, `productsSearch`, `productsPage` (optional `search`)
     - RewardCatalog: `rewardProducts`, `rewardProductsSearch`, `rewardProductsPage` (optional `search`), `rewardProduct`, `upsertRewardProduct`, `deleteRewardProduct`
     - RewardOrders: `rewardOrdersByTenant`, `rewardOrdersByTenantPage`, `rewardOrdersByTenantCursor`, `rewardOrdersByCustomer`, `rewardOrder`, `updateRewardOrderStatus`, `placeRewardOrder`, `placeRewardOrderOnBehalf`
-    - RulesEngine: `pointsRulesByTenant`, `pointsRulesByTenantPage`, `invoicesByTenant` (with `take`), `invoicesByTenantPage` (optional `search`), `invoicesByTenantCursor` (optional `search`)
+    - RulesEngine: `pointsRulesByTenant`, `pointsRulesByTenantPage`, `ruleConditionTree`, `ruleConditionTreeFlat`, `invoicesByTenant` (with `take`), `invoicesByTenantPage` (optional `search`), `invoiceById`, `invoicesByTenantCursor` (optional `search`)
+    - Rules catalog metadata (RulesEngine): `ruleEntities`, `ruleAttributes`, `ruleAttributeOperators`, `ruleAttributeOptions`, `ruleOperatorCatalog`, `createRuleEntity`, `updateRuleEntity`, `deleteRuleEntity`, `createRuleAttribute`, `updateRuleAttribute`, `deleteRuleAttribute`, `setRuleAttributeOperators`, `createRuleAttributeOption`, `updateRuleAttributeOption`, `deleteRuleAttributeOption`
   - `*Cursor` queries use keyset pagination with `after` + `take` and return `pageInfo { endCursor, hasNextPage }`.
 - REST (RulesEngine): `POST /api/v1/integration/invoices/apply`
   - Body: see `InvoiceUpsertRequest` in `src/api/Modules/RulesEngine/Application/Invoices/InvoiceUpsertRequest.cs`
   - Returns `202 Accepted` with a `correlationId` (processing is async via background worker).
-- REST (RulesEngine rules): `POST /api/v1/rules/points/upsert` (create only), `PUT /api/v1/rules/points/{id}` (tenantId + active only), `DELETE /api/v1/rules/points/{id}?tenantId=...`
-  - Rules create payload requires `name`, `ruleType`, and `conditions`.
+- REST (RulesEngine rules): `POST /api/v1/rules/points/upsert` (batch insert of versioned rules), `POST /api/v1/rules/points/complex`, `PUT /api/v1/rules/points/{id}` (tenantId + active only), `DELETE /api/v1/rules/points/{id}?tenantId=...`
+  - Existing rules are immutable; create a new rule version instead of editing an existing one.
 - REST (Products): `POST /api/v1/products/upsert`
 - REST (RewardCatalog): `POST /api/v1/rewards/catalog/upsert`, `POST /api/v1/rewards/catalog/upload` (CSV)
 - RewardOrders are available via GraphQL mutations/queries (see `RewardOrderMutations` and `RewardOrderQueries`).
@@ -89,6 +100,7 @@ dotnet ef migrations add <Name> --context TenantsDbContext --output-dir Modules/
 dotnet ef migrations add <Name> --context CustomersDbContext --output-dir Modules/Customers/Migrations
 dotnet ef migrations add <Name> --context LedgerDbContext --output-dir Modules/LoyaltyLedger/Migrations
 dotnet ef migrations add <Name> --context IntegrationDbContext --output-dir Modules/RulesEngine/Migrations
+dotnet ef migrations add <Name> --context ProductsDbContext --output-dir Modules/Products/Migrations
 dotnet ef migrations add <Name> --context RewardCatalogDbContext --output-dir Modules/RewardCatalog/Migrations
 dotnet ef migrations add <Name> --context RewardOrdersDbContext --output-dir Modules/RewardOrders/Migrations
 ```
