@@ -124,24 +124,59 @@ public class LedgerServiceInMemoryTests
         await cd.SaveChangesAsync();
 
         var exNoAccount = await Assert.ThrowsAsync<Exception>(() =>
-            ledger.AdjustAsync(new ManualAdjustPointsCommand(customer.Id, null, 10, PointsReasons.ManualAdjustment, null)));
+            ledger.AdjustAsync(new ManualAdjustPointsCommand(
+                customer.Id,
+                null,
+                null,
+                null,
+                10,
+                PointsReasons.ManualAdjustment,
+                null)));
         Assert.Contains("Customer has no points account", exNoAccount.Message);
 
         ld.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
         await ld.SaveChangesAsync();
 
         var exAmount = await Assert.ThrowsAsync<Exception>(() =>
-            ledger.AdjustAsync(new ManualAdjustPointsCommand(customer.Id, null, 0, PointsReasons.ManualAdjustment, null)));
+            ledger.AdjustAsync(new ManualAdjustPointsCommand(
+                customer.Id,
+                null,
+                null,
+                null,
+                0,
+                PointsReasons.ManualAdjustment,
+                null)));
         Assert.Contains("Amount cannot be zero", exAmount.Message);
 
         var exReason = await Assert.ThrowsAsync<Exception>(() =>
-            ledger.AdjustAsync(new ManualAdjustPointsCommand(customer.Id, null, 10, PointsReasons.RewardRedeem, null)));
+            ledger.AdjustAsync(new ManualAdjustPointsCommand(
+                customer.Id,
+                null,
+                null,
+                null,
+                10,
+                PointsReasons.RewardRedeem,
+                null)));
         Assert.Contains("Manual adjustments must use reason", exReason.Message);
 
-        var account = await ledger.AdjustAsync(new ManualAdjustPointsCommand(customer.Id, null, 10, PointsReasons.ManualAdjustment, "corr-2"));
+        var account = await ledger.AdjustAsync(new ManualAdjustPointsCommand(
+            customer.Id,
+            null,
+            null,
+            null,
+            10,
+            PointsReasons.ManualAdjustment,
+            "corr-2"));
         Assert.Equal(10, account.Balance);
 
-        var idempotent = await ledger.AdjustAsync(new ManualAdjustPointsCommand(customer.Id, null, 10, PointsReasons.ManualAdjustment, "corr-2"));
+        var idempotent = await ledger.AdjustAsync(new ManualAdjustPointsCommand(
+            customer.Id,
+            null,
+            null,
+            null,
+            10,
+            PointsReasons.ManualAdjustment,
+            "corr-2"));
         Assert.Equal(10, idempotent.Balance);
     }
 }

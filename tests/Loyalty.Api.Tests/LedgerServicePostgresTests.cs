@@ -38,7 +38,14 @@ public class LedgerServicePostgresTests
         var account = await ledgerDb.PointsAccounts.AsNoTracking().FirstAsync(a => a.CustomerId == customer.Id);
         Assert.Equal(30, account.Balance);
 
-        await ledger.AdjustAsync(new ManualAdjustPointsCommand(customer.Id, user.Id, 10, PointsReasons.ManualAdjustment, null));
+        await ledger.AdjustAsync(new ManualAdjustPointsCommand(
+            customer.Id,
+            user.Id,
+            null,
+            null,
+            10,
+            PointsReasons.ManualAdjustment,
+            null));
         ledgerDb.ChangeTracker.Clear();
         var adjusted = await ledgerDb.PointsAccounts.AsNoTracking().FirstAsync(a => a.CustomerId == customer.Id);
         Assert.Equal(40, adjusted.Balance);

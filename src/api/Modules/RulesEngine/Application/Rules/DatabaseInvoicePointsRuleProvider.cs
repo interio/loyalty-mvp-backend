@@ -13,11 +13,22 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
 {
     private readonly IntegrationDbContext _db;
     private readonly ILogger<DatabaseInvoicePointsRuleProvider> _logger;
+    private readonly IReadOnlyList<IComplexRuleEntityEvaluator> _complexRuleEntityEvaluators;
 
     public DatabaseInvoicePointsRuleProvider(IntegrationDbContext db, ILogger<DatabaseInvoicePointsRuleProvider> logger)
+        : this(db, logger, ComplexRuleEntityEvaluatorDefaults.Create())
+    {
+    }
+
+    public DatabaseInvoicePointsRuleProvider(
+        IntegrationDbContext db,
+        ILogger<DatabaseInvoicePointsRuleProvider> logger,
+        IEnumerable<IComplexRuleEntityEvaluator> complexRuleEntityEvaluators)
     {
         _db = db;
         _logger = logger;
+        _complexRuleEntityEvaluators = complexRuleEntityEvaluators?.ToList()
+            ?? ComplexRuleEntityEvaluatorDefaults.Create().ToList();
     }
 
     public async Task<IReadOnlyList<IInvoicePointsRule>> GetRulesAsync(Guid tenantId, CancellationToken ct = default)
@@ -101,7 +112,7 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
         return rules;
     }
 
-    private static IInvoicePointsRule? ParseRule(
+    private IInvoicePointsRule? ParseRule(
         PointsRule rule,
         IReadOnlyList<RuleConditionGroup> groups,
         IReadOnlyList<RuleCondition> conditions,
@@ -150,7 +161,13 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                     if (rewardPoints <= 0)
                         throw new ArgumentException("Complex rule requires rewardPoints > 0.");
 
-                    return new ComplexRule(rule.Id, rule.RootGroupId.Value, rewardPoints, groups, conditions);
+                    return new ComplexRule(
+                        rule.Id,
+                        rule.RootGroupId.Value,
+                        rewardPoints,
+                        groups,
+                        conditions,
+                        _complexRuleEntityEvaluators);
                 }
             default:
                 throw new ArgumentException($"Unsupported rule type: {rule.RuleType}");

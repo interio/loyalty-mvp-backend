@@ -62,6 +62,8 @@ public class RewardOrderServiceTests
         await ledgerService.AdjustAsync(new ManualAdjustPointsCommand(
             customer.Id,
             null,
+            null,
+            null,
             200,
             PointsReasons.ManualAdjustment,
             "seed-balance"));
@@ -142,6 +144,8 @@ public class RewardOrderServiceTests
         var ledgerService = new LedgerService(ledgerDb, userService);
         await ledgerService.AdjustAsync(new ManualAdjustPointsCommand(
             customer.Id,
+            null,
+            null,
             null,
             200,
             PointsReasons.ManualAdjustment,

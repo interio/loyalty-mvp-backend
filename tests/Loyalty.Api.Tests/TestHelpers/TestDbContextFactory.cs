@@ -129,6 +129,7 @@ public static class TestDbContextFactory
             "\"Id\" uuid PRIMARY KEY, " +
             "\"TenantId\" uuid NOT NULL, " +
             "\"ExternalId\" text NOT NULL, " +
+            "\"CustomerExternalId\" character varying(200) NULL, " +
             "\"DocumentType\" text NOT NULL, " +
             "\"Payload\" jsonb NOT NULL, " +
             "\"PayloadHash\" text NULL, " +
@@ -138,6 +139,12 @@ public static class TestDbContextFactory
             "\"LastAttemptAt\" timestamp with time zone NULL, " +
             "\"ReceivedAt\" timestamp with time zone NOT NULL DEFAULT now(), " +
             "\"ProcessedAt\" timestamp with time zone NULL)");
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS \"IX_InboundDocuments_TenantId_CustomerExternalId\" " +
+            "ON \"InboundDocuments\" (\"TenantId\", \"CustomerExternalId\")");
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS \"IX_InboundDocuments_TenantId_ReceivedAt\" " +
+            "ON \"InboundDocuments\" (\"TenantId\", \"ReceivedAt\")");
         await db.Database.ExecuteSqlRawAsync(
             "CREATE TABLE IF NOT EXISTS \"PointsRules\" (" +
             "\"Id\" uuid PRIMARY KEY, " +

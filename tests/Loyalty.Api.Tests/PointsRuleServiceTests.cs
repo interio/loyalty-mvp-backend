@@ -5,6 +5,7 @@ using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace Loyalty.Api.Tests;
@@ -15,6 +16,7 @@ public class PointsRuleServiceTests
     {
         var options = new DbContextOptionsBuilder<IntegrationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         return new IntegrationDbContext(options);
     }
