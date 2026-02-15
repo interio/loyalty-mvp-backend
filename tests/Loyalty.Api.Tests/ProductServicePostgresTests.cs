@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Loyalty.Api.Modules.Products.Application;
+using Loyalty.Api.Modules.Products.Domain;
 using Loyalty.Api.Modules.Products.Infrastructure.Persistence;
+using Loyalty.Api.Modules.Tenants.Domain;
 using Loyalty.Api.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -16,12 +18,33 @@ public class ProductServicePostgresTests
     {
         await using var db = await PostgresTestDatabase.CreateAsync();
         await using var productsDb = TestDbContextFactory.CreateProducts(db.ConnectionString);
-        await productsDb.Database.EnsureCreatedAsync();
+        await TestDbContextFactory.EnsureProductsSchemaAsync(productsDb);
 
         var service = new ProductService(productsDb);
         var tenantId = Guid.NewGuid();
         var otherTenantId = Guid.NewGuid();
         var distributor = Guid.NewGuid();
+        var otherDistributor = Guid.NewGuid();
+
+        productsDb.Tenants.AddRange(
+            new Tenant { Id = tenantId, Name = "Tenant A" },
+            new Tenant { Id = otherTenantId, Name = "Tenant B" });
+        productsDb.Distributors.AddRange(
+            new Distributor
+            {
+                Id = distributor,
+                TenantId = tenantId,
+                Name = "dist-a",
+                DisplayName = "Distributor A"
+            },
+            new Distributor
+            {
+                Id = otherDistributor,
+                TenantId = otherTenantId,
+                Name = "dist-b",
+                DisplayName = "Distributor B"
+            });
+        await productsDb.SaveChangesAsync();
 
         await service.UpsertAsync(new[]
         {
@@ -53,7 +76,7 @@ public class ProductServicePostgresTests
             new ProductUpsertRequest
             {
                 TenantId = otherTenantId,
-                DistributorId = distributor,
+                DistributorId = otherDistributor,
                 Sku = "SKU-100",
                 Name = "Other Tenant Product",
                 Gtin = "9999",

@@ -17,6 +17,13 @@ public class Product
     /// <summary>Distributor identifier from ERP (tenant-scoped).</summary>
     public Guid DistributorId { get; set; }
 
+    [GraphQLIgnore] public Distributor? Distributor { get; set; }
+
+    /// <summary>Distributor display name for admin readability.</summary>
+    [NotMapped]
+    [GraphQLName("distributorDisplayName")]
+    public string? DistributorDisplayName => Distributor?.DisplayName;
+
     /// <summary>ERP SKU/code (may overlap across distributors).</summary>
     public string Sku { get; set; } = default!;
 

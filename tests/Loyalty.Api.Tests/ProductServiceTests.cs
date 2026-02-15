@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Loyalty.Api.Modules.Products.Application;
+using Loyalty.Api.Modules.Products.Domain;
 using Loyalty.Api.Modules.Products.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -21,6 +22,14 @@ public class ProductServiceTests
 
         var tenantId = Guid.NewGuid();
         var distributor = Guid.NewGuid();
+        db.Distributors.Add(new Distributor
+        {
+            Id = distributor,
+            TenantId = tenantId,
+            Name = "dist-1",
+            DisplayName = "Distributor 1"
+        });
+        await db.SaveChangesAsync();
 
         await service.UpsertAsync(new[]
         {
@@ -52,5 +61,31 @@ public class ProductServiceTests
         var product = await db.Products.FirstAsync();
         Assert.Equal("Updated", product.Name);
         Assert.Equal(2m, product.Cost);
+    }
+
+    [Fact]
+    public async Task Upsert_ThrowsWhenDistributorMissingForTenant()
+    {
+        var options = new DbContextOptionsBuilder<ProductsDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var db = new ProductsDbContext(options);
+        var service = new ProductService(db);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UpsertAsync(new[]
+            {
+                new ProductUpsertRequest
+                {
+                    TenantId = Guid.NewGuid(),
+                    DistributorId = Guid.NewGuid(),
+                    Sku = "SKU-1",
+                    Name = "Product",
+                    Cost = 1m
+                }
+            }));
+
+        Assert.Contains("Distributor not found for this tenant", ex.Message);
     }
 }

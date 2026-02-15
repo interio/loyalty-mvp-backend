@@ -32,6 +32,8 @@ builder.Services
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.LoyaltyLedger.GraphQL.LedgerMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.Products.GraphQL.ProductQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.Products.GraphQL.DistributorQueries>()
+  .AddTypeExtension<Loyalty.Api.Modules.Products.GraphQL.DistributorMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.RewardCatalog.GraphQL.RewardCatalogQueries>()
   .AddTypeExtension<Loyalty.Api.Modules.RewardCatalog.GraphQL.RewardCatalogMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.RewardCatalog.GraphQL.RewardProductExtensions>()
@@ -93,6 +95,7 @@ builder.Services.AddScoped<IComplexRuleEntityEvaluator, ComplexRuleProductEntity
 builder.Services.AddScoped<IInvoicePointsRuleProvider, DatabaseInvoicePointsRuleProvider>();
 builder.Services.AddScoped<PointsPostingService>();
 builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<DistributorService>();
 builder.Services.AddScoped<RewardCatalogService>();
 builder.Services.AddScoped<IRewardCatalogLookup>(sp => sp.GetRequiredService<RewardCatalogService>());
 builder.Services.AddScoped<IRewardInventoryService>(sp => sp.GetRequiredService<RewardCatalogService>());

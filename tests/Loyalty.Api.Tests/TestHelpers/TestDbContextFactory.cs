@@ -95,6 +95,24 @@ public static class TestDbContextFactory
     public static async Task EnsureProductsSchemaAsync(ProductsDbContext db)
     {
         await db.Database.ExecuteSqlRawAsync(
+            "CREATE TABLE IF NOT EXISTS \"Tenants\" (" +
+            "\"Id\" uuid PRIMARY KEY, " +
+            "\"Name\" character varying(200) NOT NULL, " +
+            "\"CreatedAt\" timestamp with time zone NOT NULL)");
+
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE TABLE IF NOT EXISTS \"Distributors\" (" +
+            "\"Id\" uuid PRIMARY KEY, " +
+            "\"TenantId\" uuid NOT NULL, " +
+            "\"Name\" character varying(200) NOT NULL, " +
+            "\"DisplayName\" character varying(300) NOT NULL, " +
+            "\"CreatedAt\" timestamp with time zone NOT NULL, " +
+            "CONSTRAINT \"AK_Distributors_TenantId_Id\" UNIQUE (\"TenantId\", \"Id\"))");
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_Distributors_TenantId_Name\" " +
+            "ON \"Distributors\" (\"TenantId\", \"Name\")");
+
+        await db.Database.ExecuteSqlRawAsync(
             "CREATE TABLE IF NOT EXISTS \"Products\" (" +
             "\"Id\" uuid PRIMARY KEY, " +
             "\"TenantId\" uuid NOT NULL, " +
@@ -103,9 +121,11 @@ public static class TestDbContextFactory
             "\"Gtin\" character varying(50) NULL, " +
             "\"Name\" character varying(400) NOT NULL, " +
             "\"Cost\" numeric(18,2) NOT NULL, " +
-            "\"Attributes\" jsonb NOT NULL, " +
+            "\"Attributes\" text NOT NULL, " +
             "\"CreatedAt\" timestamp with time zone NOT NULL, " +
-            "\"UpdatedAt\" timestamp with time zone NOT NULL)");
+            "\"UpdatedAt\" timestamp with time zone NOT NULL, " +
+            "CONSTRAINT \"FK_Products_Distributors_TenantId_DistributorId\" " +
+            "FOREIGN KEY (\"TenantId\", \"DistributorId\") REFERENCES \"Distributors\" (\"TenantId\", \"Id\"))");
         await db.Database.ExecuteSqlRawAsync(
             "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_Products_TenantId_DistributorId_Sku\" " +
             "ON \"Products\" (\"TenantId\", \"DistributorId\", \"Sku\") WHERE \"Gtin\" IS NULL");

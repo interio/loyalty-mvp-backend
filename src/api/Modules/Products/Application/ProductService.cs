@@ -19,6 +19,7 @@ public class ProductService
         EnsureTenant(tenantId);
         return _db.Products
             .AsNoTracking()
+            .Include(p => p.Distributor)
             .Where(p => p.TenantId == tenantId)
             .OrderBy(p => p.Name)
             .Take(take)
@@ -34,7 +35,10 @@ public class ProductService
         CancellationToken ct = default)
     {
         EnsureTenant(tenantId);
-        var query = _db.Products.AsNoTracking().Where(p => p.TenantId == tenantId);
+        var query = _db.Products
+            .AsNoTracking()
+            .Include(p => p.Distributor)
+            .Where(p => p.TenantId == tenantId);
 
         var term = search?.Trim();
         if (!string.IsNullOrWhiteSpace(term))
@@ -62,6 +66,7 @@ public class ProductService
 
         return _db.Products
            .AsNoTracking()
+           .Include(p => p.Distributor)
            .Where(p => p.TenantId == tenantId)
            .Where(p =>
                 EF.Functions.ILike(p.Name, pattern) ||
@@ -75,17 +80,22 @@ public class ProductService
     /// <summary>Upserts a batch of products.</summary>
     public async Task UpsertAsync(IEnumerable<ProductUpsertRequest> requests, CancellationToken ct = default)
     {
+        var distributorScopeCache = new Dictionary<(Guid TenantId, Guid DistributorId), bool>();
         foreach (var req in requests)
         {
-            await UpsertSingleAsync(req, ct);
+            await UpsertSingleAsync(req, distributorScopeCache, ct);
         }
 
         await _db.SaveChangesAsync(ct);
     }
 
-    private async Task UpsertSingleAsync(ProductUpsertRequest req, CancellationToken ct)
+    private async Task UpsertSingleAsync(
+        ProductUpsertRequest req,
+        IDictionary<(Guid TenantId, Guid DistributorId), bool> distributorScopeCache,
+        CancellationToken ct)
     {
         Validate(req);
+        await EnsureDistributorExistsAsync(req.TenantId, req.DistributorId, distributorScopeCache, ct);
 
         var trimmedSku = req.Sku.Trim();
         var trimmedGtin = string.IsNullOrWhiteSpace(req.Gtin) ? null : req.Gtin.Trim();
@@ -139,6 +149,26 @@ public class ProductService
     private static void EnsureTenant(Guid tenantId)
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
+    }
+
+    private async Task EnsureDistributorExistsAsync(
+        Guid tenantId,
+        Guid distributorId,
+        IDictionary<(Guid TenantId, Guid DistributorId), bool> distributorScopeCache,
+        CancellationToken ct)
+    {
+        var key = (tenantId, distributorId);
+        if (distributorScopeCache.TryGetValue(key, out var exists))
+        {
+            if (!exists)
+                throw new ArgumentException("Distributor not found for this tenant.");
+            return;
+        }
+
+        exists = await _db.Distributors.AnyAsync(d => d.TenantId == tenantId && d.Id == distributorId, ct);
+        distributorScopeCache[key] = exists;
+        if (!exists)
+            throw new ArgumentException("Distributor not found for this tenant.");
     }
 
     private static JsonObject ToJson(Dictionary<string, object?>? dict)
