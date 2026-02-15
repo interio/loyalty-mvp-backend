@@ -14,6 +14,8 @@ using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Tenants.Application;
 using Loyalty.Api.Modules.Tenants.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +48,23 @@ builder.Services
   .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.RuleAttributeMutations>()
   .AddTypeExtension<Loyalty.Api.Modules.RulesEngine.GraphQL.RuleAttributeOptionMutations>();
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Loyalty MVP REST API",
+        Version = "v1",
+        Description = "REST endpoints for integrations and batch operations."
+    });
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (System.IO.File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
+});
 
 // Basic CORS for local admin UI (override with ALLOWED_ORIGINS env/comma list if needed).
 var allowedOrigins = (builder.Configuration["ALLOWED_ORIGINS"] ?? "http://localhost:3000,http://127.0.0.1:3000")
@@ -109,6 +128,15 @@ builder.Services.AddHostedService<Loyalty.Api.Modules.RulesEngine.Application.In
 var app = builder.Build();
 
 app.UseCors(ClientCors);
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Loyalty MVP REST API v1");
+        options.RoutePrefix = "swagger";
+    });
+}
 app.MapControllers();
 app.MapGraphQL("/graphql");
 app.Run();

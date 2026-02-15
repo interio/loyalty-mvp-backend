@@ -46,9 +46,9 @@ public class RewardCatalogController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> Upload([FromForm] IFormFile file, CancellationToken ct)
+    public async Task<IActionResult> Upload(IFormFile? file, CancellationToken ct)
     {
-        if (file.Length == 0)
+        if (file is null || file.Length == 0)
             return BadRequest("CSV file is required.");
 
         try
