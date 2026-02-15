@@ -25,6 +25,20 @@ internal static class ComplexRuleComparisonEngine
 
     private static bool AreEqual(object left, JsonElement right)
     {
+        if (right.ValueKind == JsonValueKind.Array)
+        {
+            // Allow legacy/single-value list payloads (e.g. ["gold"]) for eq.
+            var enumerator = right.EnumerateArray();
+            if (!enumerator.MoveNext())
+                return false;
+
+            var onlyItem = enumerator.Current;
+            if (enumerator.MoveNext())
+                return false;
+
+            return AreEqual(left, onlyItem);
+        }
+
         if (TryGetDecimal(left, out var leftNum) && TryGetDecimal(right, out var rightNum))
             return leftNum == rightNum;
 

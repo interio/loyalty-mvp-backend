@@ -41,4 +41,15 @@ public class ComplexRuleComparisonEngineTests
         Assert.True(ComplexRuleComparisonEngine.Compare(left, "gt", earlierDate));
         Assert.True(ComplexRuleComparisonEngine.Compare(left, "lte", laterDate));
     }
+
+    [Fact]
+    public void Compare_Eq_AcceptsSingleElementArray()
+    {
+        var single = JsonDocument.Parse("[\"gold\"]").RootElement;
+        var multi = JsonDocument.Parse("[\"gold\",\"platinum\"]").RootElement;
+
+        Assert.True(ComplexRuleComparisonEngine.Compare("gold", "eq", single));
+        Assert.False(ComplexRuleComparisonEngine.Compare("silver", "eq", single));
+        Assert.False(ComplexRuleComparisonEngine.Compare("gold", "eq", multi));
+    }
 }
