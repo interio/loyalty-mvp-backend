@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Loyalty.Api.Modules.Customers.Application;
+using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.Customers.Infrastructure.Persistence;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Products.Infrastructure.Persistence;
@@ -170,6 +171,9 @@ public class PointsPostingService
         if (customer is null)
             throw new System.Collections.Generic.KeyNotFoundException("Customer not found for provided tenant and external id.");
 
+        // Customer tier master data is owned by loyalty platform, not invoice payload.
+        request.CustomerTier = CustomerTierCatalog.NormalizeOrDefault(customer.Tier);
+
         // Idempotency: check if this invoice already exists in ledger scoped to tenant/customer.
         var existingTx = await _ledgerDb.PointsTransactions
             .FirstOrDefaultAsync(t =>
@@ -273,11 +277,13 @@ public class PointsPostingService
         var productRules = rules.OfType<IInvoicePointsRuleWithProductAttributes>().ToList();
         if (productRules.Count > 0)
         {
-            var productAttributesBySku = await LoadProductAttributesAsync(tenantId, request, ct);
+            var productContext = await LoadProductContextAsync(tenantId, request, ct);
             foreach (var rule in productRules)
             {
-                rule.SetProductAttributes(productAttributesBySku);
+                rule.SetProductAttributes(productContext.AttributesBySku);
             }
+
+            EnrichLineDistributorIds(request, productContext.DistributorIdsBySku);
         }
 
         foreach (var rule in rules)
@@ -304,7 +310,7 @@ public class PointsPostingService
         return (total, appliedRules);
     }
 
-    private async Task<IReadOnlyDictionary<string, System.Text.Json.Nodes.JsonObject>> LoadProductAttributesAsync(
+    private async Task<ProductContextData> LoadProductContextAsync(
         Guid tenantId,
         InvoiceUpsertRequest request,
         CancellationToken ct)
@@ -317,29 +323,75 @@ public class PointsPostingService
 
         if (skus.Count == 0)
         {
-            return new Dictionary<string, System.Text.Json.Nodes.JsonObject>(StringComparer.OrdinalIgnoreCase);
+            return new ProductContextData(
+                new Dictionary<string, System.Text.Json.Nodes.JsonObject>(StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
         }
 
-        var normalizedSkus = skus.Select(sku => sku.ToUpperInvariant()).ToList();
+        var normalizedSkus = skus
+            .OfType<string>()
+            .Select(sku => sku.ToUpperInvariant())
+            .ToList();
 
         var products = await _productsDb.Products
             .AsNoTracking()
             .Where(p => p.TenantId == tenantId && normalizedSkus.Contains(p.Sku.ToUpper()))
             .ToListAsync(ct);
 
-        var map = new Dictionary<string, System.Text.Json.Nodes.JsonObject>(StringComparer.OrdinalIgnoreCase);
+        var attributesBySku = new Dictionary<string, System.Text.Json.Nodes.JsonObject>(StringComparer.OrdinalIgnoreCase);
+        var distributorsBySku = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var product in products)
         {
             var key = product.Sku?.Trim();
             if (string.IsNullOrWhiteSpace(key))
                 continue;
-            if (!map.ContainsKey(key))
+            if (!attributesBySku.ContainsKey(key))
             {
-                map[key] = product.Attributes ?? new System.Text.Json.Nodes.JsonObject();
+                attributesBySku[key] = product.Attributes ?? new System.Text.Json.Nodes.JsonObject();
             }
+
+            if (!distributorsBySku.TryGetValue(key, out var ids))
+            {
+                ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                distributorsBySku[key] = ids;
+            }
+            ids.Add(product.DistributorId.ToString());
         }
 
-        return map;
+        var resolvedDistributorIdsBySku = distributorsBySku
+            .Where(kvp => kvp.Value.Count == 1)
+            .ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.First(),
+                StringComparer.OrdinalIgnoreCase);
+
+        return new ProductContextData(attributesBySku, resolvedDistributorIdsBySku);
+    }
+
+    private static void EnrichLineDistributorIds(
+        InvoiceUpsertRequest request,
+        IReadOnlyDictionary<string, string> distributorIdsBySku)
+    {
+        if (request.Lines.Count == 0 || distributorIdsBySku.Count == 0)
+            return;
+
+        foreach (var line in request.Lines)
+        {
+            if (!string.IsNullOrWhiteSpace(line.DistributorId))
+            {
+                line.DistributorId = line.DistributorId.Trim();
+                continue;
+            }
+
+            var sku = line.Sku?.Trim();
+            if (string.IsNullOrWhiteSpace(sku))
+                continue;
+
+            if (distributorIdsBySku.TryGetValue(sku, out var distributorId))
+            {
+                line.DistributorId = distributorId;
+            }
+        }
     }
 
     private sealed record AppliedRuleSnapshot(
@@ -375,4 +427,8 @@ public class PointsPostingService
 
         return null;
     }
+
+    private sealed record ProductContextData(
+        IReadOnlyDictionary<string, JsonObject> AttributesBySku,
+        IReadOnlyDictionary<string, string> DistributorIdsBySku);
 }

@@ -30,6 +30,7 @@ internal sealed class ComplexRuleInvoiceEntityEvaluator : IComplexRuleEntityEval
             "tenantid" => invoice.TenantId,
             "actoremail" => invoice.ActorEmail,
             "actorexternalid" => invoice.ActorExternalId,
+            "customertier" => invoice.CustomerTier,
             _ => null
         };
     }

@@ -11,7 +11,16 @@ public class CustomerMutations
 {
     /// <summary>Creates a customer/outlet and seeds its points account.</summary>
     public Task<Customer> CreateCustomer(CreateCustomerInput input, [Service] ICustomerService customers) =>
-        SafeExecute(() => customers.CreateAsync(new CreateCustomerCommand(input.TenantId, input.Name, input.ContactEmail, input.ExternalId)));
+        SafeExecute(() => customers.CreateAsync(new CreateCustomerCommand(
+            input.TenantId,
+            input.Name,
+            input.ContactEmail,
+            input.ExternalId,
+            input.Tier)));
+
+    /// <summary>Updates only customer loyalty tier.</summary>
+    public Task<Customer> UpdateCustomerTier(UpdateCustomerTierInput input, [Service] ICustomerService customers) =>
+        SafeExecute(() => customers.UpdateTierAsync(input.CustomerId, input.TenantId, input.Tier));
 
     /// <summary>Creates a user under a customer/outlet.</summary>
     public Task<User> CreateUser(CreateUserInput input, [Service] IUserService users) =>
@@ -35,7 +44,14 @@ public class CustomerMutations
 /// <param name="Name">Customer name.</param>
 /// <param name="ContactEmail">Optional contact email.</param>
 /// <param name="ExternalId">Optional ERP/CRM customer ID.</param>
-public record CreateCustomerInput(Guid TenantId, string Name, string? ContactEmail, string? ExternalId);
+/// <param name="Tier">Optional loyalty tier: bronze, silver, gold, platinum.</param>
+public record CreateCustomerInput(Guid TenantId, string Name, string? ContactEmail, string? ExternalId, string? Tier = null);
+
+/// <summary>Input for updating customer tier only.</summary>
+/// <param name="CustomerId">Customer identifier.</param>
+/// <param name="TenantId">Tenant identifier for scope validation.</param>
+/// <param name="Tier">Loyalty tier: bronze, silver, gold, platinum.</param>
+public record UpdateCustomerTierInput(Guid CustomerId, Guid TenantId, string Tier);
 
 /// <summary>Input for creating a user/employee.</summary>
 /// <param name="TenantId">Tenant identifier.</param>

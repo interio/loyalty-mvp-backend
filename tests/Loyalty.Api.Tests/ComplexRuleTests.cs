@@ -189,6 +189,57 @@ public class ComplexRuleTests
     }
 
     [Fact]
+    public void CalculatePoints_SupportsCustomerTierAndDistributorIdConditions()
+    {
+        var ruleId = Guid.NewGuid();
+        var rootGroup = CreateGroup(ruleId, null, "AND", 0);
+        var rewardPoints = 500;
+
+        var rule = new ComplexRule(
+            ruleId,
+            rootGroup.Id,
+            rewardPoints,
+            new[] { rootGroup },
+            new[]
+            {
+                CreateCondition(rootGroup.Id, "customer", "tier", "in", "[\"gold\",\"platinum\"]", 0),
+                CreateCondition(rootGroup.Id, "distributor", "id", "eq", "\"111-111-xxx\"", 1)
+            });
+
+        var matchingInvoice = CreateInvoice(
+            currency: "EUR",
+            occurredAt: DateTimeOffset.UtcNow,
+            lines: new[]
+            {
+                new InvoiceLineRequest { Sku = "SKU-1", Quantity = 1, NetAmount = 30, DistributorId = "DIST-OTHER" },
+                new InvoiceLineRequest { Sku = "SKU-2", Quantity = 2, NetAmount = 60, DistributorId = "111-111-xxx" }
+            });
+        matchingInvoice.CustomerTier = "gold";
+
+        var tierMismatchInvoice = CreateInvoice(
+            currency: "EUR",
+            occurredAt: DateTimeOffset.UtcNow,
+            lines: new[]
+            {
+                new InvoiceLineRequest { Sku = "SKU-2", Quantity = 2, NetAmount = 60, DistributorId = "111-111-xxx" }
+            });
+        tierMismatchInvoice.CustomerTier = "silver";
+
+        var distributorMismatchInvoice = CreateInvoice(
+            currency: "EUR",
+            occurredAt: DateTimeOffset.UtcNow,
+            lines: new[]
+            {
+                new InvoiceLineRequest { Sku = "SKU-2", Quantity = 2, NetAmount = 60, DistributorId = "DIST-OTHER" }
+            });
+        distributorMismatchInvoice.CustomerTier = "platinum";
+
+        Assert.Equal(rewardPoints, rule.CalculatePoints(matchingInvoice));
+        Assert.Equal(0, rule.CalculatePoints(tierMismatchInvoice));
+        Assert.Equal(0, rule.CalculatePoints(distributorMismatchInvoice));
+    }
+
+    [Fact]
     public void CalculatePoints_UsesCustomInvoiceEntityEvaluator()
     {
         var ruleId = Guid.NewGuid();

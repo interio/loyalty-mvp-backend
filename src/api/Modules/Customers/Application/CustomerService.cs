@@ -10,7 +10,12 @@ using Loyalty.Api.Modules.Shared;
 namespace Loyalty.Api.Modules.Customers.Application;
 
 /// <summary>Command for creating a customer/outlet.</summary>
-public record CreateCustomerCommand(Guid TenantId, string Name, string? ContactEmail, string? ExternalId);
+public record CreateCustomerCommand(
+    Guid TenantId,
+    string Name,
+    string? ContactEmail,
+    string? ExternalId,
+    string? Tier = null);
 
 /// <summary>Customer module application contract.</summary>
 public interface ICustomerService
@@ -29,6 +34,9 @@ public interface ICustomerService
 
     /// <summary>Create a customer and seed its points account.</summary>
     Task<Customer> CreateAsync(CreateCustomerCommand command, CancellationToken ct = default);
+
+    /// <summary>Updates loyalty tier for an existing customer.</summary>
+    Task<Customer> UpdateTierAsync(Guid customerId, Guid tenantId, string tier, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -137,14 +145,18 @@ public interface ICustomerService
             throw new Exception("Customer name is required.");
 
         var contactEmail = command.ContactEmail?.Trim();
-            var externalId = command.ExternalId?.Trim();
+        var externalId = command.ExternalId?.Trim();
+        var tier = CustomerTierCatalog.NormalizeOrDefault(command.Tier);
+        if (!CustomerTierCatalog.IsSupported(tier))
+            throw new Exception("Customer tier must be one of: bronze, silver, gold, platinum.");
 
-            var customer = new Customer
-            {
-                TenantId = command.TenantId,
+        var customer = new Customer
+        {
+            TenantId = command.TenantId,
             Name = name,
             ContactEmail = string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail,
-            ExternalId = string.IsNullOrWhiteSpace(externalId) ? null : externalId
+            ExternalId = string.IsNullOrWhiteSpace(externalId) ? null : externalId,
+            Tier = tier
         };
 
         if (ShouldShareTransaction)
@@ -185,6 +197,31 @@ public interface ICustomerService
     /// <inheritdoc />
     public Task<bool> BelongsToTenantAsync(Guid customerId, Guid tenantId, CancellationToken ct = default) =>
         _db.Customers.AnyAsync(c => c.Id == customerId && c.TenantId == tenantId, ct);
+
+    /// <inheritdoc />
+    public async Task<Customer> UpdateTierAsync(Guid customerId, Guid tenantId, string tier, CancellationToken ct = default)
+    {
+        if (customerId == Guid.Empty) throw new Exception("Customer id is required.");
+        if (tenantId == Guid.Empty) throw new Exception("Tenant id is required.");
+
+        var normalizedTier = CustomerTierCatalog.NormalizeOrDefault(tier);
+        if (!CustomerTierCatalog.IsSupported(normalizedTier))
+            throw new Exception("Customer tier must be one of: bronze, silver, gold, platinum.");
+
+        var customer = await _db.Customers.FirstOrDefaultAsync(
+            c => c.Id == customerId && c.TenantId == tenantId,
+            ct);
+
+        if (customer is null)
+            throw new Exception("Customer not found for tenant.");
+
+        if (string.Equals(customer.Tier, normalizedTier, StringComparison.OrdinalIgnoreCase))
+            return customer;
+
+        customer.Tier = normalizedTier;
+        await _db.SaveChangesAsync(ct);
+        return customer;
+    }
 
     private async Task<List<Customer>> LoadPointsAsync(IQueryable<Customer> query, CancellationToken ct)
     {

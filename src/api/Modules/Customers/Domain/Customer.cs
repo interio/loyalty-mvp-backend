@@ -33,6 +33,11 @@ public class Customer
     /// </summary>
     public string? ExternalId { get; set; }
 
+    /// <summary>
+    /// Loyalty tier assigned by this platform (not ERP): bronze, silver, gold, platinum.
+    /// </summary>
+    public string Tier { get; set; } = CustomerTierCatalog.Bronze;
+
     /// <summary>Creation timestamp in UTC.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

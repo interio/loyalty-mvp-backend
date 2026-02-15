@@ -30,6 +30,7 @@ public class CustomersDbContext : DbContext
             e.Property(x => x.Name).IsRequired().HasMaxLength(300);
             e.Property(x => x.ContactEmail).HasMaxLength(320);
             e.Property(x => x.ExternalId).HasMaxLength(200);
+            e.Property(x => x.Tier).IsRequired().HasMaxLength(20).HasDefaultValue("bronze");
 
             e.HasOne(x => x.Tenant)
                 .WithMany(t => t.Customers)

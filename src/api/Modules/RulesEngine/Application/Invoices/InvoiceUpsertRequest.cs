@@ -32,6 +32,11 @@ public class InvoiceUpsertRequest
     /// <summary>Optional actor external id attribution.</summary>
     public string? ActorExternalId { get; set; }
 
+    /// <summary>
+    /// Customer tier resolved by loyalty platform at processing time (not trusted from ERP input).
+    /// </summary>
+    public string? CustomerTier { get; set; }
+
     /// <summary>Invoice lines (cannot be empty).</summary>
     [Required]
     public List<InvoiceLineRequest> Lines { get; set; } = new();
@@ -51,4 +56,7 @@ public class InvoiceLineRequest
     /// <summary>Net amount for the line (must be >= 0).</summary>
     [Range(0, double.MaxValue)]
     public decimal NetAmount { get; set; }
+
+    /// <summary>Optional distributor identifier for this line.</summary>
+    public string? DistributorId { get; set; }
 }

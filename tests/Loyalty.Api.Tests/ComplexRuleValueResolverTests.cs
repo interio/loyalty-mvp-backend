@@ -24,6 +24,7 @@ public class ComplexRuleEntityEvaluatorTests
             Currency = "EUR",
             ActorEmail = "a@test",
             ActorExternalId = "USR-1",
+            CustomerTier = "gold",
             Lines = new List<InvoiceLineRequest>
             {
                 new() { Sku = "A", Quantity = 1, NetAmount = 20 },
@@ -44,13 +45,16 @@ public class ComplexRuleEntityEvaluatorTests
         Assert.True(evaluator.Evaluate(
             CreateCondition("invoice", "tenantId", "eq", $"\"{invoice.TenantId}\""),
             context));
+        Assert.True(evaluator.Evaluate(
+            CreateCondition("invoice", "customerTier", "eq", "\"gold\""),
+            context));
     }
 
     [Fact]
     public void ProductEvaluator_ResolvesCoreFields_AndAttributeFallback()
     {
         var evaluator = new ComplexRuleProductEntityEvaluator();
-        var line = new InvoiceLineRequest { Sku = "SKU-1", Quantity = 3, NetAmount = 99.5m };
+        var line = new InvoiceLineRequest { Sku = "SKU-1", Quantity = 3, NetAmount = 99.5m, DistributorId = "dist-1" };
         var invoice = new InvoiceUpsertRequest
         {
             TenantId = Guid.NewGuid(),
@@ -78,7 +82,53 @@ public class ComplexRuleEntityEvaluatorTests
             CreateCondition("product", "netAmount", "eq", "99.5"),
             context));
         Assert.True(evaluator.Evaluate(
+            CreateCondition("product", "distributorId", "eq", "\"dist-1\""),
+            context));
+        Assert.True(evaluator.Evaluate(
             CreateCondition("product", "category_name", "eq", "\"beer\""),
+            context));
+    }
+
+    [Fact]
+    public void CustomerEvaluator_ResolvesTierAndExternalId()
+    {
+        var evaluator = new ComplexRuleCustomerEntityEvaluator();
+        var invoice = new InvoiceUpsertRequest
+        {
+            TenantId = Guid.NewGuid(),
+            InvoiceId = "INV-1",
+            OccurredAt = DateTimeOffset.UtcNow,
+            CustomerExternalId = "CUST-1",
+            CustomerTier = "platinum",
+            Lines = new List<InvoiceLineRequest> { new() { Sku = "SKU-1", Quantity = 1, NetAmount = 10 } }
+        };
+        var context = new ComplexRuleEvaluationContext(invoice, null, new Dictionary<string, JsonObject>());
+
+        Assert.True(evaluator.Evaluate(
+            CreateCondition("customer", "tier", "eq", "\"platinum\""),
+            context));
+        Assert.True(evaluator.Evaluate(
+            CreateCondition("customer", "externalId", "eq", "\"CUST-1\""),
+            context));
+    }
+
+    [Fact]
+    public void DistributorEvaluator_ResolvesDistributorId()
+    {
+        var evaluator = new ComplexRuleDistributorEntityEvaluator();
+        var line = new InvoiceLineRequest { Sku = "SKU-1", Quantity = 1, NetAmount = 10, DistributorId = "111-111-xxx" };
+        var invoice = new InvoiceUpsertRequest
+        {
+            TenantId = Guid.NewGuid(),
+            InvoiceId = "INV-1",
+            OccurredAt = DateTimeOffset.UtcNow,
+            CustomerExternalId = "CUST-1",
+            Lines = new List<InvoiceLineRequest> { line }
+        };
+        var context = new ComplexRuleEvaluationContext(invoice, line, new Dictionary<string, JsonObject>());
+
+        Assert.True(evaluator.Evaluate(
+            CreateCondition("distributor", "id", "eq", "\"111-111-xxx\""),
             context));
     }
 
@@ -88,9 +138,14 @@ public class ComplexRuleEntityEvaluatorTests
         var registry = new ComplexRuleEntityEvaluatorRegistry(null);
 
         Assert.True(registry.TryGet("invoice", out var invoice));
+        Assert.True(registry.TryGet("customer", out var customer));
+        Assert.True(registry.TryGet("distributor", out var distributor));
         Assert.True(registry.TryGet("product", out var product));
         Assert.Equal(ComplexRuleEntityScope.Invoice, invoice.Scope);
+        Assert.Equal(ComplexRuleEntityScope.Invoice, customer.Scope);
+        Assert.Equal(ComplexRuleEntityScope.InvoiceLine, distributor.Scope);
         Assert.Equal(ComplexRuleEntityScope.InvoiceLine, product.Scope);
+        Assert.True(registry.IsLineScoped("distributor"));
         Assert.True(registry.IsLineScoped("product"));
     }
 

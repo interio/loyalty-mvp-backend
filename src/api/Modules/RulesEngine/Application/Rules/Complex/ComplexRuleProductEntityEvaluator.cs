@@ -35,6 +35,7 @@ internal sealed class ComplexRuleProductEntityEvaluator : IComplexRuleEntityEval
             "sku" => line.Sku,
             "quantity" => line.Quantity,
             "netamount" => line.NetAmount,
+            "distributorid" => line.DistributorId,
             _ => null
         };
     }

@@ -6,6 +6,8 @@ internal static class ComplexRuleEntityEvaluatorDefaults
         new IComplexRuleEntityEvaluator[]
         {
             new ComplexRuleInvoiceEntityEvaluator(),
+            new ComplexRuleCustomerEntityEvaluator(),
+            new ComplexRuleDistributorEntityEvaluator(),
             new ComplexRuleProductEntityEvaluator()
         };
 
