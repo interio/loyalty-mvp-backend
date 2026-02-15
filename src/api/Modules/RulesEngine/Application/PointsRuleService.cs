@@ -365,6 +365,30 @@ public class PointsRuleService
         if (rule is null)
             throw new System.Collections.Generic.KeyNotFoundException("Rule not found for tenant.");
 
+        var groupIds = await _db.RuleConditionGroups
+            .Where(g => g.RuleId == id)
+            .Select(g => g.Id)
+            .ToListAsync(ct);
+
+        if (groupIds.Count > 0)
+        {
+            var conditions = await _db.RuleConditions
+                .Where(c => groupIds.Contains(c.GroupId))
+                .ToListAsync(ct);
+            if (conditions.Count > 0)
+            {
+                _db.RuleConditions.RemoveRange(conditions);
+            }
+
+            var groups = await _db.RuleConditionGroups
+                .Where(g => g.RuleId == id)
+                .ToListAsync(ct);
+            if (groups.Count > 0)
+            {
+                _db.RuleConditionGroups.RemoveRange(groups);
+            }
+        }
+
         _db.PointsRules.Remove(rule);
         await _db.SaveChangesAsync(ct);
     }

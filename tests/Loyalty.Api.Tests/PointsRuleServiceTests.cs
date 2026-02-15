@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Loyalty.Api.Modules.RulesEngine.Application;
@@ -80,12 +81,19 @@ public class PointsRuleServiceTests
             Name = "Spend rule A",
             RuleType = "spend",
             Active = true,
-            Priority = 1
+            Priority = 1,
+            Conditions = new Dictionary<string, object?>
+            {
+                ["spendStep"] = 100,
+                ["rewardPoints"] = 10
+            }
         };
 
         await service.UpsertAsync(new[] { request });
         var rule = await db.PointsRules.FirstAsync();
         Assert.Equal(1, rule.RuleVersion);
+        Assert.True(await db.RuleConditionGroups.AnyAsync(g => g.RuleId == rule.Id));
+        Assert.True(await db.RuleConditions.AnyAsync());
 
         request.Id = rule.Id;
         await Assert.ThrowsAsync<ArgumentException>(() => service.UpsertAsync(new[] { request }));
@@ -97,6 +105,8 @@ public class PointsRuleServiceTests
 
         await service.DeleteAsync(rule.Id, tenantId);
         Assert.False(await service.ExistsAsync(rule.Id, tenantId));
+        Assert.False(await db.RuleConditionGroups.AnyAsync(g => g.RuleId == rule.Id));
+        Assert.False(await db.RuleConditions.AnyAsync());
     }
 
     [Fact]
