@@ -11,7 +11,7 @@ public class TenantMutations
 {
     /// <summary>Creates a tenant record.</summary>
     public Task<Tenant> CreateTenant(CreateTenantInput input, [Service] ITenantService tenants) =>
-        SafeExecute(() => tenants.CreateAsync(input.Name));
+        SafeExecute(() => tenants.CreateAsync(input.Name, input.Email, input.Phone, input.Address));
 
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {
@@ -27,4 +27,4 @@ public class TenantMutations
 }
 
 /// <summary>Input for creating a tenant (client/organization).</summary>
-public record CreateTenantInput(string Name);
+public record CreateTenantInput(string Name, string? Email, string? Phone, string? Address);

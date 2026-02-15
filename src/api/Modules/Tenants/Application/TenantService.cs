@@ -9,7 +9,12 @@ namespace Loyalty.Api.Modules.Tenants.Application;
 public interface ITenantService
 {
     /// <summary>Create a tenant.</summary>
-    Task<Tenant> CreateAsync(string name, CancellationToken ct = default);
+    Task<Tenant> CreateAsync(
+        string name,
+        string? email = null,
+        string? phone = null,
+        string? address = null,
+        CancellationToken ct = default);
 
     /// <summary>Check if a tenant exists.</summary>
     Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
@@ -32,13 +37,24 @@ public class TenantService : ITenantService
     public TenantService(TenantsDbContext db) => _db = db;
 
     /// <inheritdoc />
-    public async Task<Tenant> CreateAsync(string name, CancellationToken ct = default)
+    public async Task<Tenant> CreateAsync(
+        string name,
+        string? email = null,
+        string? phone = null,
+        string? address = null,
+        CancellationToken ct = default)
     {
         var trimmed = name?.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
             throw new Exception("Tenant name is required.");
 
-        var tenant = new Tenant { Name = trimmed };
+        var tenant = new Tenant
+        {
+            Name = trimmed,
+            Email = NormalizeOptional(email),
+            Phone = NormalizeOptional(phone),
+            Address = NormalizeOptional(address),
+        };
         _db.Tenants.Add(tenant);
 
         await _db.SaveChangesAsync(ct);
@@ -65,5 +81,11 @@ public class TenantService : ITenantService
             .OrderBy(t => t.Name);
 
         return await query.ToPageResultAsync(page, pageSize, ct);
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 }

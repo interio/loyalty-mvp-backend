@@ -16,6 +16,9 @@ public class TenantsDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Email).HasMaxLength(320);
+            e.Property(x => x.Phone).HasMaxLength(50);
+            e.Property(x => x.Address).HasMaxLength(500);
             e.Ignore(x => x.Customers);
             e.Ignore(x => x.Users);
         });

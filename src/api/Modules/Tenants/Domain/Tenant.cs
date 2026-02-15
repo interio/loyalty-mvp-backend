@@ -13,6 +13,15 @@ public class Tenant
     /// <summary>Tenant display name.</summary>
     public string Name { get; set; } = default!;
 
+    /// <summary>Primary contact email.</summary>
+    public string? Email { get; set; }
+
+    /// <summary>Primary contact phone.</summary>
+    public string? Phone { get; set; }
+
+    /// <summary>Business address.</summary>
+    public string? Address { get; set; }
+
     /// <summary>Creation timestamp in UTC.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

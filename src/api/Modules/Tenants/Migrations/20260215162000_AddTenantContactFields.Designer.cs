@@ -3,6 +3,7 @@ using System;
 using Loyalty.Api.Modules.Tenants.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Loyalty.Api.Modules.Tenants.Migrations
 {
     [DbContext(typeof(TenantsDbContext))]
-    partial class TenantsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260215162000_AddTenantContactFields")]
+    partial class AddTenantContactFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -28,12 +31,12 @@ namespace Loyalty.Api.Modules.Tenants.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("Address")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
                         .HasMaxLength(320)
@@ -53,6 +56,9 @@ namespace Loyalty.Api.Modules.Tenants.Migrations
                     b.ToTable("Tenants");
                 });
 
+            modelBuilder.Entity("Loyalty.Api.Modules.Tenants.Domain.Tenant", b =>
+                {
+                });
 #pragma warning restore 612, 618
         }
     }
