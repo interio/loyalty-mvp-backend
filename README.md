@@ -69,9 +69,9 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
 - GraphQL: `POST /graphql`
   - Resolvers are registered per module; use module inputs:
     - Tenants: `createTenant`, `tenants`, `tenantsPage`
-    - Customers/Users: `createCustomer`, `createUser`, `customer`, `customersByTenant`, `customersByTenantPage` (optional `search`), `customersByTenantSearch`, `usersByCustomer`, `usersByTenant`, `usersByTenantPage` (optional `search`), `usersByTenantSearch`
+    - Customers/Users: `createCustomer`, `updateCustomerTier`, `createUser`, `customer`, `customersByTenant`, `customersByTenantPage` (optional `search`), `customersByTenantSearch`, `usersByCustomer`, `usersByTenant`, `usersByTenantPage` (optional `search`), `usersByTenantSearch`
     - Ledger: `redeemPoints`, `manualAdjustPoints`, `customerTransactions`
-    - Products: `products` (required `tenantId`), `productsSearch` (required `tenantId` + `search`), `productsPage` (required `tenantId`, optional `search`) - when authenticated, `tenantId` must match tenant claim
+    - Products: `products` (required `tenantId`), `productsSearch` (required `tenantId` + `search`), `productsPage` (required `tenantId`, optional `search`), `distributorsByTenant`, `distributorsByTenantPage` (optional `search`), `distributorsByTenantSearch`, `createDistributor` - when authenticated, `tenantId` must match tenant claim
     - RewardCatalog: `rewardProducts`, `rewardProductsSearch`, `rewardProductsPage` (optional `search`), `rewardProduct`, `upsertRewardProduct`, `deleteRewardProduct`
     - RewardOrders: `rewardOrdersByTenant`, `rewardOrdersByTenantPage`, `rewardOrdersByTenantCursor`, `rewardOrdersByCustomer`, `rewardOrder`, `updateRewardOrderStatus`, `placeRewardOrder`, `placeRewardOrderOnBehalf`
     - RulesEngine: `pointsRulesByTenant`, `pointsRulesByTenantPage`, `ruleConditionTree`, `ruleConditionTreeFlat`, `invoicesByTenant` (with `take`), `invoicesByTenantPage` (optional `search`), `invoiceById`, `invoicesByTenantCursor` (optional `search`)
@@ -90,7 +90,7 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
 ```
 dotnet test LoyaltyMvp.sln
 ```
-Includes unit tests for rules, ledger behaviors, invoice idempotency (`tests/Loyalty.Api.Tests`).
+Includes unit/integration coverage for tenants, customers/users, products/distributors, rules engine (including complex rules + catalog metadata), invoice processing/idempotency, reward catalog, reward orders, and ledger behaviors (`tests/Loyalty.Api.Tests`).
 
 ## Adding migrations (per context)
 Examples:
