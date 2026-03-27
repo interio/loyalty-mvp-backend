@@ -40,6 +40,29 @@ public class PointsRuleService
         return await query.ToPageResultAsync(page, pageSize, ct);
     }
 
+    /// <summary>
+    /// Returns dashboard-friendly campaign data derived from rules for a tenant.
+    /// Each entry contains rule name and effective date range.
+    /// </summary>
+    public async Task<List<CampaignRuleSummary>> ListCampaignRulesByTenantAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+
+        return await _db.PointsRules
+            .AsNoTracking()
+            .Where(r => r.TenantId == tenantId)
+            .OrderBy(r => r.EffectiveFrom)
+            .ThenBy(r => r.Priority)
+            .Select(r => new CampaignRuleSummary
+            {
+                Id = r.Id,
+                RuleName = r.Name,
+                StartDate = r.EffectiveFrom,
+                EndDate = r.EffectiveTo
+            })
+            .ToListAsync(ct);
+    }
+
     public Task<bool> ExistsAsync(Guid id, Guid tenantId, CancellationToken ct = default) =>
         _db.PointsRules.AnyAsync(r => r.Id == id && r.TenantId == tenantId, ct);
 
@@ -473,6 +496,7 @@ public class PointsRuleService
             }
         }
     }
+
 }
 
 
@@ -573,4 +597,12 @@ public class RuleConditionTreeConditionFlat
     public string Operator { get; set; } = default!;
     public string ValueJson { get; set; } = default!;
     public int SortOrder { get; set; }
+}
+
+public class CampaignRuleSummary
+{
+    public Guid Id { get; set; }
+    public string RuleName { get; set; } = default!;
+    public DateTimeOffset StartDate { get; set; }
+    public DateTimeOffset? EndDate { get; set; }
 }

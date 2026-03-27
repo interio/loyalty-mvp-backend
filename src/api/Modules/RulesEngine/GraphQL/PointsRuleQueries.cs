@@ -28,6 +28,12 @@ public class PointsRuleQueries
                 new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
         });
 
+    /// <summary>Lists rule campaigns for dashboard usage.</summary>
+    public Task<List<CampaignRuleSummary>> CampaignRulesByTenant(
+        Guid tenantId,
+        [Service] PointsRuleService rules) =>
+        SafeExecute(() => rules.ListCampaignRulesByTenantAsync(tenantId));
+
     /// <summary>Gets the nested condition tree for a rule.</summary>
     public Task<RuleConditionTreeGroup> RuleConditionTree(
         Guid ruleId,
