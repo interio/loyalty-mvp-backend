@@ -143,7 +143,7 @@ public class ProductService
         if (req.DistributorId == Guid.Empty) throw new ArgumentException("DistributorId is required.");
         if (string.IsNullOrWhiteSpace(req.Sku)) throw new ArgumentException("Sku is required.");
         if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("Name is required.");
-        if (req.Cost < 0) throw new ArgumentException("Cost cannot be negative.");
+        if (req.Cost.HasValue && req.Cost.Value < 0) throw new ArgumentException("Cost cannot be negative.");
     }
 
     private static void EnsureTenant(Guid tenantId)

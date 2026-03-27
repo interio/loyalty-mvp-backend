@@ -10,7 +10,8 @@ public class ProductUpsertRequest
     [Required] public string Sku { get; set; } = default!;
     [Required] public string Name { get; set; } = default!;
     public string? Gtin { get; set; }
-    public decimal Cost { get; set; }
+    /// <summary>Deprecated. Optional and scheduled for removal in a future API version.</summary>
+    public decimal? Cost { get; set; }
 
     /// <summary>Extensible attributes (JSON object) for future rules.</summary>
     public Dictionary<string, object?>? Attributes { get; set; }

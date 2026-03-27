@@ -64,6 +64,44 @@ public class ProductServiceTests
     }
 
     [Fact]
+    public async Task Upsert_AllowsNullCost()
+    {
+        var options = new DbContextOptionsBuilder<ProductsDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var db = new ProductsDbContext(options);
+        var service = new ProductService(db);
+
+        var tenantId = Guid.NewGuid();
+        var distributor = Guid.NewGuid();
+        db.Distributors.Add(new Distributor
+        {
+            Id = distributor,
+            TenantId = tenantId,
+            Name = "dist-1",
+            DisplayName = "Distributor 1"
+        });
+        await db.SaveChangesAsync();
+
+        await service.UpsertAsync(new[]
+        {
+            new ProductUpsertRequest
+            {
+                TenantId = tenantId,
+                DistributorId = distributor,
+                Sku = "SKU-NULL-COST",
+                Name = "No Cost Product",
+                Gtin = null,
+                Cost = null
+            }
+        });
+
+        var product = await db.Products.SingleAsync();
+        Assert.Null(product.Cost);
+    }
+
+    [Fact]
     public async Task Upsert_ThrowsWhenDistributorMissingForTenant()
     {
         var options = new DbContextOptionsBuilder<ProductsDbContext>()

@@ -63,7 +63,7 @@ public class ProductsDbContext : DbContext
             e.Property(x => x.Sku).IsRequired().HasMaxLength(200);
             e.Property(x => x.Gtin).HasMaxLength(50);
             e.Property(x => x.Name).IsRequired().HasMaxLength(400);
-            e.Property(x => x.Cost).HasPrecision(18, 2);
+            e.Property(x => x.Cost).HasPrecision(18, 2).IsRequired(false);
 
             e.Property(x => x.Attributes)
                 .HasConversion(

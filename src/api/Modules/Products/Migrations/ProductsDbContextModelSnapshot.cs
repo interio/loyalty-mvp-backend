@@ -64,7 +64,7 @@ namespace Loyalty.Api.Modules.Products.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("Cost")
+                    b.Property<decimal?>("Cost")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 

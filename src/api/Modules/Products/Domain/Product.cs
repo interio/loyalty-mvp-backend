@@ -33,8 +33,9 @@ public class Product
     /// <summary>Display name.</summary>
     public string Name { get; set; } = default!;
 
-    /// <summary>Unit cost in source currency (for rule calculations).</summary>
-    public decimal Cost { get; set; }
+    /// <summary>Unit cost in source currency (deprecated, optional).</summary>
+    [GraphQLDeprecated("Deprecated. This field is optional and will be removed in a future API version.")]
+    public decimal? Cost { get; set; }
 
     /// <summary>Extensible attributes for future rule conditions (stored as JSON).</summary>
     [GraphQLIgnore] public JsonObject Attributes { get; set; } = new();
