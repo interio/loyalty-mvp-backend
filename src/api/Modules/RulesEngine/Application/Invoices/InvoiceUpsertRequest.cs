@@ -15,6 +15,9 @@ public class InvoiceUpsertRequest
     [Required]
     public string InvoiceId { get; set; } = default!;
 
+    /// <summary>Optional order id from ERP that can group multiple invoices under one order.</summary>
+    public string? OrderId { get; set; }
+
     /// <summary>When the invoice occurred (UTC).</summary>
     [Required]
     public DateTimeOffset OccurredAt { get; set; }

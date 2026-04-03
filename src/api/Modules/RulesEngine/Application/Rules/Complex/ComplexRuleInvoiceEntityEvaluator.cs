@@ -24,6 +24,7 @@ internal sealed class ComplexRuleInvoiceEntityEvaluator : IComplexRuleEntityEval
             "totalamount" => invoice.Lines.Sum(l => l.NetAmount),
             "totalnetamount" => invoice.Lines.Sum(l => l.NetAmount),
             "invoiceid" => invoice.InvoiceId,
+            "orderid" => invoice.OrderId,
             "occurredat" => invoice.OccurredAt,
             "customerexternalid" => invoice.CustomerExternalId,
             "linescount" => invoice.Lines.Count,

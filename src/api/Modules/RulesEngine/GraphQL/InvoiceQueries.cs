@@ -57,11 +57,19 @@ public class InvoiceQueries
             if (!string.IsNullOrWhiteSpace(term))
             {
                 var pattern = $"%{term}%";
-                baseQuery = baseQuery.Where(d =>
-                    EF.Functions.ILike(d.ExternalId, pattern) ||
-                    EF.Functions.ILike(d.Status, pattern) ||
-                    (d.Error != null && EF.Functions.ILike(d.Error, pattern)) ||
-                    (d.CustomerExternalId != null && EF.Functions.ILike(d.CustomerExternalId, pattern)));
+                baseQuery = db.InboundDocuments
+                    .FromSqlInterpolated($@"
+                        SELECT * FROM ""InboundDocuments""
+                        WHERE ""TenantId"" = {tenantId}
+                          AND ""DocumentType"" = {"invoice"}
+                          AND (
+                            ""ExternalId"" ILIKE {pattern}
+                            OR ""Status"" ILIKE {pattern}
+                            OR COALESCE(""Error"", '') ILIKE {pattern}
+                            OR COALESCE(""CustomerExternalId"", '') ILIKE {pattern}
+                            OR COALESCE(""Payload""::text, '') ILIKE {pattern}
+                          )")
+                    .AsNoTracking();
             }
 
             var totalCount = await baseQuery.CountAsync();
@@ -125,11 +133,19 @@ public class InvoiceQueries
             if (!string.IsNullOrWhiteSpace(term))
             {
                 var pattern = $"%{term}%";
-                baseQuery = baseQuery.Where(d =>
-                    EF.Functions.ILike(d.ExternalId, pattern) ||
-                    EF.Functions.ILike(d.Status, pattern) ||
-                    (d.Error != null && EF.Functions.ILike(d.Error, pattern)) ||
-                    (d.CustomerExternalId != null && EF.Functions.ILike(d.CustomerExternalId, pattern)));
+                baseQuery = db.InboundDocuments
+                    .FromSqlInterpolated($@"
+                        SELECT * FROM ""InboundDocuments""
+                        WHERE ""TenantId"" = {tenantId}
+                          AND ""DocumentType"" = {"invoice"}
+                          AND (
+                            ""ExternalId"" ILIKE {pattern}
+                            OR ""Status"" ILIKE {pattern}
+                            OR COALESCE(""Error"", '') ILIKE {pattern}
+                            OR COALESCE(""CustomerExternalId"", '') ILIKE {pattern}
+                            OR COALESCE(""Payload""::text, '') ILIKE {pattern}
+                          )")
+                    .AsNoTracking();
             }
 
             if (cursor != null)
@@ -237,6 +253,7 @@ public class InvoiceQueries
             doc.Id,
             doc.TenantId,
             doc.ExternalId,
+            parsed?.OrderId,
             customerExternalId,
             parsed?.Currency,
             parsed?.ActorEmail,
@@ -270,6 +287,7 @@ public record InboundInvoiceDto(
     Guid Id,
     Guid TenantId,
     string InvoiceId,
+    string? OrderId,
     string? CustomerExternalId,
     string? Currency,
     string? ActorEmail,

@@ -98,6 +98,7 @@ Content-Type: application/json
 {
   "tenantId": "TENANT_ID",
   "invoiceId": "INV-2025-0000123",
+  "orderId": "ORD-2025-0000456",
   "occurredAt": "2025-12-30T16:45:00Z",
   "customerExternalId": "CUST-BLUE-001",
   "actorEmail": "owner@bluefox.example",
@@ -105,6 +106,22 @@ Content-Type: application/json
   "lines": [
     { "sku": "BEER-HEINEKEN-KEG-30L", "quantity": 1, "netAmount": 520.00 },
     { "sku": "BEER-HEINEKEN-BTL-24PK", "quantity": 4, "netAmount": 360.00 }
+  ]
+}
+
+Optional split-invoice example (same order, separate invoice):
+POST /api/v1/integration/invoices/apply
+Content-Type: application/json
+{
+  "tenantId": "TENANT_ID",
+  "invoiceId": "INV-2025-0000124",
+  "orderId": "ORD-2025-0000456",
+  "occurredAt": "2025-12-30T16:50:00Z",
+  "customerExternalId": "CUST-BLUE-001",
+  "actorEmail": "owner@bluefox.example",
+  "currency": "EUR",
+  "lines": [
+    { "sku": "BEER-HEINEKEN-BTL-24PK", "quantity": 2, "netAmount": 180.00 }
   ]
 }
 
