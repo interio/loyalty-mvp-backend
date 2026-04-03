@@ -67,8 +67,9 @@ public class IntegrationDbContext : DbContext
             e.Property(x => x.RuleType).IsRequired().HasMaxLength(100);
             e.Property(x => x.RewardPoints).HasDefaultValue(0);
             e.Property(x => x.Priority).HasDefaultValue(0);
-            e.Property(x => x.Active).HasDefaultValue(true);
+            e.Property(x => x.Active).HasDefaultValue(false);
             e.Property(x => x.EffectiveFrom).IsRequired();
+            e.Property(x => x.CreatedBy).HasMaxLength(320);
             e.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             e.Property(x => x.RootGroupId);
             e.HasOne(x => x.RootGroup)

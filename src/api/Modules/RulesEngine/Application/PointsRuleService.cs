@@ -78,6 +78,7 @@ public class PointsRuleService
         {
             Validate(req);
             var rewardPoints = ResolveRewardPoints(req);
+            var createdBy = NormalizeCreatedBy(req.CreatedBy);
 
             if (req.Id.HasValue)
             {
@@ -97,10 +98,13 @@ public class PointsRuleService
             rule.TenantId = req.TenantId;
             rule.Name = req.Name.Trim();
             rule.RuleType = req.RuleType.Trim();
-            rule.Active = req.Active;
+            // New rules must always be inactive first; activation is an explicit follow-up action.
+            rule.Active = false;
             rule.Priority = req.Priority;
             rule.EffectiveFrom = req.EffectiveFrom ?? DateTimeOffset.UtcNow;
             rule.EffectiveTo = req.EffectiveTo;
+            // Temporary: createdBy is provided by UI until real server-side auth is in place.
+            rule.CreatedBy = createdBy;
 
             var rootGroup = new RuleConditionGroup
             {
@@ -158,6 +162,7 @@ public class PointsRuleService
     public async Task<Guid> CreateComplexRuleAsync(ComplexRuleCreateRequest request, CancellationToken ct = default)
     {
         ValidateComplex(request);
+        var createdBy = NormalizeCreatedBy(request.CreatedBy);
 
         using var tx = await _db.Database.BeginTransactionAsync(ct);
 
@@ -167,10 +172,13 @@ public class PointsRuleService
             TenantId = request.TenantId,
             Name = request.Name.Trim(),
             RuleType = string.IsNullOrWhiteSpace(request.RuleType) ? "complex_rule" : request.RuleType.Trim(),
-            Active = request.Active,
+            // New rules must always be inactive first; activation is an explicit follow-up action.
+            Active = false,
             Priority = request.Priority,
             EffectiveFrom = request.EffectiveFrom ?? DateTimeOffset.UtcNow,
             EffectiveTo = request.EffectiveTo,
+            // Temporary: createdBy is provided by UI until real server-side auth is in place.
+            CreatedBy = createdBy,
             CreatedAt = DateTimeOffset.UtcNow,
             RewardPoints = request.PointsToGrant
         };
@@ -393,6 +401,7 @@ public class PointsRuleService
         if (req.TenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
         if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("name is required.");
         if (string.IsNullOrWhiteSpace(req.RuleType)) throw new ArgumentException("ruleType is required.");
+        if (string.IsNullOrWhiteSpace(req.CreatedBy)) throw new ArgumentException("createdBy is required.");
         if (ResolveRewardPoints(req) <= 0) throw new ArgumentException("rewardPoints must be greater than 0.");
     }
 
@@ -448,6 +457,7 @@ public class PointsRuleService
     {
         if (req.TenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
         if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("name is required.");
+        if (string.IsNullOrWhiteSpace(req.CreatedBy)) throw new ArgumentException("createdBy is required.");
         if (req.PointsToGrant <= 0) throw new ArgumentException("pointsToGrant must be greater than 0.");
         if (req.RootGroup is null) throw new ArgumentException("rootGroup is required.");
         if (req.RootGroup.Children is null || req.RootGroup.Children.Count == 0)
@@ -490,6 +500,17 @@ public class PointsRuleService
         }
 
         throw new ArgumentException("Unknown node type.");
+    }
+
+    private static string NormalizeCreatedBy(string? createdBy)
+    {
+        var normalized = createdBy?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized))
+            throw new ArgumentException("createdBy is required.");
+
+        return normalized.Length <= 320
+            ? normalized
+            : normalized[..320];
     }
 
     private void AddConditionNodes(
@@ -546,6 +567,8 @@ public class PointsRuleUpsertRequest
     public string RuleType { get; set; } = default!;
     public int? RewardPoints { get; set; }
     public Dictionary<string, object?>? Conditions { get; set; }
+    // Temporary: UI sends creator email until proper backend auth/claims are available.
+    public string? CreatedBy { get; set; }
     public bool Active { get; set; } = true;
     public int Priority { get; set; } = 0;
     public DateTimeOffset? EffectiveFrom { get; set; }
@@ -562,6 +585,8 @@ public class ComplexRuleCreateRequest
     public Guid TenantId { get; set; }
     public string Name { get; set; } = default!;
     public string? RuleType { get; set; }
+    // Temporary: UI sends creator email until proper backend auth/claims are available.
+    public string? CreatedBy { get; set; }
     public bool Active { get; set; } = true;
     public int Priority { get; set; } = 0;
     public DateTimeOffset? EffectiveFrom { get; set; }

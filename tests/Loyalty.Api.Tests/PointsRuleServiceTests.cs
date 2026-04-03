@@ -38,7 +38,9 @@ public class PointsRuleServiceTests
                 {
                     TenantId = Guid.Empty,
                     Name = "Rule 1",
-                    RuleType = "spend"
+                    RuleType = "spend",
+                    CreatedBy = "admin@example.com",
+                    RewardPoints = 10
                 }
             }));
         Assert.Contains("tenantId is required", exTenant.Message);
@@ -50,7 +52,9 @@ public class PointsRuleServiceTests
                 {
                     TenantId = Guid.NewGuid(),
                     Name = " ",
-                    RuleType = "spend"
+                    RuleType = "spend",
+                    CreatedBy = "admin@example.com",
+                    RewardPoints = 10
                 }
             }));
         Assert.Contains("name is required", exName.Message);
@@ -62,7 +66,9 @@ public class PointsRuleServiceTests
                 {
                     TenantId = Guid.NewGuid(),
                     Name = "Rule 2",
-                    RuleType = " "
+                    RuleType = " ",
+                    CreatedBy = "admin@example.com",
+                    RewardPoints = 10
                 }
             }));
         Assert.Contains("ruleType is required", exType.Message);
@@ -74,7 +80,8 @@ public class PointsRuleServiceTests
                 {
                     TenantId = Guid.NewGuid(),
                     Name = "Rule 3",
-                    RuleType = "spend"
+                    RuleType = "spend",
+                    CreatedBy = "admin@example.com"
                 }
             }));
         Assert.Contains("rewardPoints must be greater than 0", exRewardPoints.Message);
@@ -92,6 +99,7 @@ public class PointsRuleServiceTests
             TenantId = tenantId,
             Name = "Spend rule A",
             RuleType = "spend",
+            CreatedBy = "admin@example.com",
             Active = true,
             Priority = 1,
             Conditions = new Dictionary<string, object?>
@@ -136,6 +144,7 @@ public class PointsRuleServiceTests
                 TenantId = tenantId,
                 Name = "Spend rule A",
                 RuleType = "spend",
+                CreatedBy = "admin@example.com",
                 Active = true,
                 Priority = 1,
                 RewardPoints = 10
@@ -143,10 +152,10 @@ public class PointsRuleServiceTests
         });
 
         var rule = await db.PointsRules.FirstAsync();
-        await service.SetActiveAsync(rule.Id, tenantId, false);
+        await service.SetActiveAsync(rule.Id, tenantId, true);
 
         var updated = await db.PointsRules.FirstAsync();
-        Assert.False(updated.Active);
+        Assert.True(updated.Active);
         Assert.NotNull(updated.UpdatedAt);
     }
 

@@ -28,6 +28,7 @@ public class PointsRuleServicePostgresTests
                 TenantId = tenantId,
                 Name = "Cascade Delete Rule Via Service",
                 RuleType = "spend",
+                CreatedBy = "admin@example.com",
                 Active = true,
                 Priority = 1,
                 Conditions = new Dictionary<string, object?>
@@ -74,6 +75,7 @@ public class PointsRuleServicePostgresTests
                 TenantId = tenantId,
                 Name = "Cascade Delete Rule",
                 RuleType = "spend",
+                CreatedBy = "admin@example.com",
                 Active = true,
                 Priority = 1,
                 Conditions = new Dictionary<string, object?>

@@ -173,10 +173,11 @@ public static class TestDbContextFactory
             "\"RuleType\" character varying(100) NOT NULL, " +
             "\"RewardPoints\" integer NOT NULL DEFAULT 0, " +
             "\"RootGroupId\" uuid NULL, " +
-            "\"Active\" boolean NOT NULL DEFAULT true, " +
+            "\"Active\" boolean NOT NULL DEFAULT false, " +
             "\"Priority\" integer NOT NULL DEFAULT 0, " +
             "\"EffectiveFrom\" timestamp with time zone NOT NULL, " +
             "\"EffectiveTo\" timestamp with time zone NULL, " +
+            "\"CreatedBy\" character varying(320) NULL, " +
             "\"CreatedAt\" timestamp with time zone NOT NULL, " +
             "\"UpdatedAt\" timestamp with time zone NULL)");
         await db.Database.ExecuteSqlRawAsync(

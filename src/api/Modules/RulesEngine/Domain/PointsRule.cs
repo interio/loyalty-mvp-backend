@@ -19,6 +19,7 @@ public partial class PointsRule
     public int Priority { get; set; } = 0;
     public DateTimeOffset EffectiveFrom { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? EffectiveTo { get; set; }
+    public string? CreatedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
 
