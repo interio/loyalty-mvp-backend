@@ -77,6 +77,7 @@ public class PointsRuleService
         foreach (var req in list)
         {
             Validate(req);
+            var rewardPoints = ResolveRewardPoints(req);
 
             if (req.Id.HasValue)
             {
@@ -89,7 +90,7 @@ public class PointsRuleService
             {
                 Id = req.Id ?? Guid.NewGuid(),
                 CreatedAt = DateTimeOffset.UtcNow,
-                RuleVersion = 1
+                RewardPoints = rewardPoints
             };
             _db.PointsRules.Add(rule);
 
@@ -124,6 +125,9 @@ public class PointsRuleService
                 var sortOrder = 0;
                 foreach (var (key, value) in conditions.OrderBy(k => k.Key))
                 {
+                    if (string.Equals(key, "rewardPoints", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
                     var valueDoc = JsonSerializer.SerializeToDocument(value);
                     _db.RuleConditions.Add(new RuleCondition
                     {
@@ -168,7 +172,7 @@ public class PointsRuleService
             EffectiveFrom = request.EffectiveFrom ?? DateTimeOffset.UtcNow,
             EffectiveTo = request.EffectiveTo,
             CreatedAt = DateTimeOffset.UtcNow,
-            RuleVersion = 1
+            RewardPoints = request.PointsToGrant
         };
 
         _db.PointsRules.Add(rule);
@@ -191,20 +195,6 @@ public class PointsRuleService
         await _db.SaveChangesAsync(ct);
 
         var rootSortOrder = 0;
-        if (request.PointsToGrant > 0)
-        {
-            _db.RuleConditions.Add(new RuleCondition
-            {
-                Id = Guid.NewGuid(),
-                GroupId = rootGroup.Id,
-                EntityCode = "rule",
-                AttributeCode = "rewardPoints",
-                Operator = "eq",
-                ValueJson = JsonSerializer.SerializeToDocument(request.PointsToGrant),
-                SortOrder = rootSortOrder++,
-                CreatedAt = DateTimeOffset.UtcNow
-            });
-        }
 
         AddConditionNodes(rule.Id, rootGroup.Id, request.RootGroup.Children, ref rootSortOrder);
 
@@ -225,7 +215,6 @@ public class PointsRuleService
 
         rule.Active = active;
         rule.UpdatedAt = DateTimeOffset.UtcNow;
-        rule.RuleVersion += 1;
         await _db.SaveChangesAsync(ct);
     }
 
@@ -404,6 +393,55 @@ public class PointsRuleService
         if (req.TenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
         if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("name is required.");
         if (string.IsNullOrWhiteSpace(req.RuleType)) throw new ArgumentException("ruleType is required.");
+        if (ResolveRewardPoints(req) <= 0) throw new ArgumentException("rewardPoints must be greater than 0.");
+    }
+
+    private static int ResolveRewardPoints(PointsRuleUpsertRequest req)
+    {
+        if (req.RewardPoints is > 0)
+            return req.RewardPoints.Value;
+
+        if (req.Conditions is null || req.Conditions.Count == 0)
+            return 0;
+
+        foreach (var (key, value) in req.Conditions)
+        {
+            if (!string.Equals(key, "rewardPoints", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            return ParseRewardPointsValue(value);
+        }
+
+        return 0;
+    }
+
+    private static int ParseRewardPointsValue(object? value)
+    {
+        if (value is null)
+            return 0;
+
+        switch (value)
+        {
+            case int intValue:
+                return intValue;
+            case long longValue:
+                return longValue is > int.MaxValue or < int.MinValue ? 0 : (int)longValue;
+            case decimal decimalValue:
+                return decimalValue is > int.MaxValue or < int.MinValue ? 0 : (int)decimalValue;
+            case double doubleValue:
+                return doubleValue is > int.MaxValue or < int.MinValue ? 0 : (int)doubleValue;
+            case float floatValue:
+                return floatValue is > int.MaxValue or < int.MinValue ? 0 : (int)floatValue;
+            case JsonElement jsonElement:
+                if (jsonElement.ValueKind == JsonValueKind.Number && jsonElement.TryGetInt32(out var number))
+                    return number;
+                if (jsonElement.ValueKind == JsonValueKind.String &&
+                    int.TryParse(jsonElement.GetString(), out var stringNumber))
+                    return stringNumber;
+                return 0;
+            default:
+                return int.TryParse(value.ToString(), out var parsed) ? parsed : 0;
+        }
     }
 
     private static void ValidateComplex(ComplexRuleCreateRequest req)
@@ -506,6 +544,7 @@ public class PointsRuleUpsertRequest
     public Guid TenantId { get; set; }
     public string Name { get; set; } = default!;
     public string RuleType { get; set; } = default!;
+    public int? RewardPoints { get; set; }
     public Dictionary<string, object?>? Conditions { get; set; }
     public bool Active { get; set; } = true;
     public int Priority { get; set; } = 0;

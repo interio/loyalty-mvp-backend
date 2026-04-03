@@ -297,7 +297,6 @@ public class PointsPostingService
                 appliedRules.Add(new AppliedRuleSnapshot(
                     metaRule.Metadata.RuleId,
                     metaRule.Metadata.RuleName ?? rule.Name,
-                    metaRule.Metadata.RuleVersion,
                     metaRule.Metadata.RuleType,
                     metaRule.Metadata.Priority,
                     metaRule.Metadata.Active,
@@ -397,7 +396,6 @@ public class PointsPostingService
     private sealed record AppliedRuleSnapshot(
         Guid RuleId,
         string RuleName,
-        int RuleVersion,
         string RuleType,
         int Priority,
         bool Active,

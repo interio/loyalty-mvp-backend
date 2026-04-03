@@ -92,13 +92,12 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                 {
                     var metadata = new InvoiceRuleMetadata(
                         row.Id,
-                        row.RuleVersion,
                         row.RuleType,
                         row.Priority,
                         row.Active,
                         row.EffectiveFrom,
                         row.EffectiveTo,
-                        BuildConditionsDocument(rootConditions),
+                        BuildConditionsDocument(row.RewardPoints, rootConditions),
                         row.Name);
                     rules.Add(new MetadataInvoicePointsRule(parsed, metadata));
                 }
@@ -129,7 +128,7 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                     if (conditionMap.Count == 0)
                         return null;
                     var spendStep = GetDecimal(conditionMap, "spendStep");
-                    var rewardPoints = GetInt(conditionMap, "rewardPoints");
+                    var rewardPoints = ResolveRewardPoints(rule, rootConditions);
                     if (spendStep <= 0 || rewardPoints <= 0)
                         throw new ArgumentException("Spend rule requires spendStep > 0 and rewardPoints > 0.");
                     return new SpendRule(spendStep, rewardPoints);
@@ -142,7 +141,7 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                         return null;
                     var sku = GetString(conditionMap, "sku");
                     var quantityStep = GetDecimal(conditionMap, "quantityStep");
-                    var rewardPoints = GetInt(conditionMap, "rewardPoints");
+                    var rewardPoints = ResolveRewardPoints(rule, rootConditions);
                     if (string.IsNullOrWhiteSpace(sku) || quantityStep <= 0 || rewardPoints <= 0)
                         throw new ArgumentException("Sku quantity rule requires sku, quantityStep > 0, rewardPoints > 0.");
                     return new SkuQuantityRule(sku, quantityStep, rewardPoints);
@@ -157,7 +156,7 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                     if (!groups.Any(g => g.Id == rule.RootGroupId.Value))
                         throw new ArgumentException("Complex rule root group not found.");
 
-                    var rewardPoints = GetRewardPoints(conditions);
+                    var rewardPoints = ResolveRewardPoints(rule, conditions);
                     if (rewardPoints <= 0)
                         throw new ArgumentException("Complex rule requires rewardPoints > 0.");
 
@@ -187,12 +186,6 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                 entry => ToScalarString(entry.First().ValueJson.RootElement));
     }
 
-    private static int GetInt(IReadOnlyDictionary<string, string?> map, string name)
-    {
-        if (!map.TryGetValue(name, out var raw) || string.IsNullOrWhiteSpace(raw)) return 0;
-        return int.TryParse(raw, out var value) ? value : 0;
-    }
-
     private static decimal GetDecimal(IReadOnlyDictionary<string, string?> map, string name)
     {
         if (!map.TryGetValue(name, out var raw) || string.IsNullOrWhiteSpace(raw)) return 0;
@@ -205,7 +198,15 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
         return raw;
     }
 
-    private static int GetRewardPoints(IReadOnlyList<RuleCondition> conditions)
+    private static int ResolveRewardPoints(PointsRule rule, IReadOnlyList<RuleCondition> conditions)
+    {
+        if (rule.RewardPoints > 0)
+            return rule.RewardPoints;
+
+        return GetLegacyRewardPoints(conditions);
+    }
+
+    private static int GetLegacyRewardPoints(IReadOnlyList<RuleCondition> conditions)
     {
         foreach (var condition in conditions)
         {
@@ -253,13 +254,24 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
         };
     }
 
-    private static JsonDocument BuildConditionsDocument(IReadOnlyList<RuleCondition> rootConditions)
+    private static JsonDocument BuildConditionsDocument(int rewardPoints, IReadOnlyList<RuleCondition> rootConditions)
     {
         var obj = new JsonObject();
+        if (rewardPoints > 0)
+        {
+            obj["rewardPoints"] = rewardPoints;
+        }
+
         if (rootConditions is not null)
         {
             foreach (var condition in rootConditions.OrderBy(c => c.SortOrder))
             {
+                if (string.Equals(condition.EntityCode, "rule", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(condition.AttributeCode, "rewardPoints", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 obj[condition.AttributeCode] = JsonNode.Parse(condition.ValueJson.RootElement.GetRawText());
             }
         }

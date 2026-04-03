@@ -14,7 +14,6 @@ public class MetadataInvoicePointsRuleTests
         var inner = new SpendRule(100m, 10);
         var metadata = new InvoiceRuleMetadata(
             Guid.NewGuid(),
-            1,
             "spend",
             0,
             true,

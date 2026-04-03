@@ -66,6 +66,18 @@ public class PointsRuleServiceTests
                 }
             }));
         Assert.Contains("ruleType is required", exType.Message);
+
+        var exRewardPoints = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UpsertAsync(new[]
+            {
+                new PointsRuleUpsertRequest
+                {
+                    TenantId = Guid.NewGuid(),
+                    Name = "Rule 3",
+                    RuleType = "spend"
+                }
+            }));
+        Assert.Contains("rewardPoints must be greater than 0", exRewardPoints.Message);
     }
 
     [Fact]
@@ -91,9 +103,10 @@ public class PointsRuleServiceTests
 
         await service.UpsertAsync(new[] { request });
         var rule = await db.PointsRules.FirstAsync();
-        Assert.Equal(1, rule.RuleVersion);
+        Assert.Equal(10, rule.RewardPoints);
         Assert.True(await db.RuleConditionGroups.AnyAsync(g => g.RuleId == rule.Id));
         Assert.True(await db.RuleConditions.AnyAsync());
+        Assert.False(await db.RuleConditions.AnyAsync(c => c.AttributeCode == "rewardPoints"));
 
         request.Id = rule.Id;
         await Assert.ThrowsAsync<ArgumentException>(() => service.UpsertAsync(new[] { request }));
@@ -124,7 +137,8 @@ public class PointsRuleServiceTests
                 Name = "Spend rule A",
                 RuleType = "spend",
                 Active = true,
-                Priority = 1
+                Priority = 1,
+                RewardPoints = 10
             }
         });
 
@@ -133,7 +147,7 @@ public class PointsRuleServiceTests
 
         var updated = await db.PointsRules.FirstAsync();
         Assert.False(updated.Active);
-        Assert.Equal(2, updated.RuleVersion);
+        Assert.NotNull(updated.UpdatedAt);
     }
 
     [Fact]

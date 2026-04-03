@@ -39,6 +39,7 @@ public class PointsRuleServicePostgresTests
         });
 
         var rule = await integration.PointsRules.AsNoTracking().SingleAsync();
+        Assert.Equal(10, rule.RewardPoints);
         var groupIds = await integration.RuleConditionGroups
             .AsNoTracking()
             .Where(g => g.RuleId == rule.Id)
@@ -47,6 +48,7 @@ public class PointsRuleServicePostgresTests
 
         Assert.NotEmpty(groupIds);
         Assert.True(await integration.RuleConditions.AnyAsync(c => groupIds.Contains(c.GroupId)));
+        Assert.False(await integration.RuleConditions.AnyAsync(c => c.GroupId == rule.RootGroupId && c.AttributeCode == "rewardPoints"));
 
         await service.DeleteAsync(rule.Id, tenantId);
 
@@ -83,6 +85,7 @@ public class PointsRuleServicePostgresTests
         });
 
         var rule = await integration.PointsRules.AsNoTracking().SingleAsync();
+        Assert.Equal(10, rule.RewardPoints);
         var groupIds = await integration.RuleConditionGroups
             .AsNoTracking()
             .Where(g => g.RuleId == rule.Id)
@@ -91,6 +94,7 @@ public class PointsRuleServicePostgresTests
 
         Assert.NotEmpty(groupIds);
         Assert.True(await integration.RuleConditions.AnyAsync(c => groupIds.Contains(c.GroupId)));
+        Assert.False(await integration.RuleConditions.AnyAsync(c => c.GroupId == rule.RootGroupId && c.AttributeCode == "rewardPoints"));
 
         await integration.Database.ExecuteSqlInterpolatedAsync(
             $@"DELETE FROM ""PointsRules"" WHERE ""Id"" = {rule.Id}");

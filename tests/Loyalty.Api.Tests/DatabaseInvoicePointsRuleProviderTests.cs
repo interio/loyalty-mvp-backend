@@ -33,7 +33,7 @@ public class DatabaseInvoicePointsRuleProviderTests
             RuleType = "spend",
             Active = true,
             Priority = 0,
-            RuleVersion = 1,
+            RewardPoints = 10,
             EffectiveFrom = DateTimeOffset.UtcNow.AddMinutes(-1)
         };
 
@@ -50,27 +50,16 @@ public class DatabaseInvoicePointsRuleProviderTests
 
         db.PointsRules.Add(rule);
         db.RuleConditionGroups.Add(rootGroup);
-        db.RuleConditions.AddRange(
-            new RuleCondition
-            {
-                GroupId = rootGroup.Id,
-                EntityCode = "rule",
-                AttributeCode = "spendStep",
-                Operator = "eq",
-                ValueJson = JsonDocument.Parse("100"),
-                SortOrder = 0,
-                CreatedAt = DateTimeOffset.UtcNow
-            },
-            new RuleCondition
-            {
-                GroupId = rootGroup.Id,
-                EntityCode = "rule",
-                AttributeCode = "rewardPoints",
-                Operator = "eq",
-                ValueJson = JsonDocument.Parse("10"),
-                SortOrder = 1,
-                CreatedAt = DateTimeOffset.UtcNow
-            });
+        db.RuleConditions.Add(new RuleCondition
+        {
+            GroupId = rootGroup.Id,
+            EntityCode = "rule",
+            AttributeCode = "spendStep",
+            Operator = "eq",
+            ValueJson = JsonDocument.Parse("100"),
+            SortOrder = 0,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
 
         await db.SaveChangesAsync();
 
@@ -94,7 +83,7 @@ public class DatabaseInvoicePointsRuleProviderTests
             RuleType = "unknown",
             Active = true,
             Priority = 0,
-            RuleVersion = 1,
+            RewardPoints = 10,
             EffectiveFrom = DateTimeOffset.UtcNow.AddMinutes(-1)
         };
 
@@ -143,7 +132,7 @@ public class DatabaseInvoicePointsRuleProviderTests
             RuleType = "spend",
             Active = true,
             Priority = 0,
-            RuleVersion = 1,
+            RewardPoints = 0,
             EffectiveFrom = DateTimeOffset.UtcNow.AddMinutes(-1)
         };
 
@@ -188,5 +177,66 @@ public class DatabaseInvoicePointsRuleProviderTests
         var rules = await provider.GetRulesAsync(tenantId);
 
         Assert.Empty(rules);
+    }
+
+    [Fact]
+    public async Task GetRulesAsync_FallsBackToLegacyRewardPointsCondition()
+    {
+        await using var db = CreateContext();
+        var tenantId = Guid.NewGuid();
+
+        var rule = new PointsRule
+        {
+            TenantId = tenantId,
+            Name = "Spend Legacy",
+            RuleType = "spend",
+            Active = true,
+            Priority = 0,
+            RewardPoints = 0,
+            EffectiveFrom = DateTimeOffset.UtcNow.AddMinutes(-1)
+        };
+
+        var rootGroup = new RuleConditionGroup
+        {
+            Id = Guid.NewGuid(),
+            RuleId = rule.Id,
+            Logic = "AND",
+            SortOrder = 0,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        rule.RootGroupId = rootGroup.Id;
+
+        db.PointsRules.Add(rule);
+        db.RuleConditionGroups.Add(rootGroup);
+        db.RuleConditions.AddRange(
+            new RuleCondition
+            {
+                GroupId = rootGroup.Id,
+                EntityCode = "rule",
+                AttributeCode = "spendStep",
+                Operator = "eq",
+                ValueJson = JsonDocument.Parse("100"),
+                SortOrder = 0,
+                CreatedAt = DateTimeOffset.UtcNow
+            },
+            new RuleCondition
+            {
+                GroupId = rootGroup.Id,
+                EntityCode = "rule",
+                AttributeCode = "rewardPoints",
+                Operator = "eq",
+                ValueJson = JsonDocument.Parse("10"),
+                SortOrder = 1,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+        await db.SaveChangesAsync();
+
+        var provider = new DatabaseInvoicePointsRuleProvider(db, new NullLogger<DatabaseInvoicePointsRuleProvider>());
+        var rules = await provider.GetRulesAsync(tenantId);
+
+        Assert.Single(rules);
+        Assert.Equal("Spend(100->10)", rules[0].Name);
     }
 }

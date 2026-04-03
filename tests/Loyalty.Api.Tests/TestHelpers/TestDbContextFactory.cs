@@ -169,15 +169,37 @@ public static class TestDbContextFactory
             "CREATE TABLE IF NOT EXISTS \"PointsRules\" (" +
             "\"Id\" uuid PRIMARY KEY, " +
             "\"TenantId\" uuid NOT NULL, " +
-            "\"RuleType\" text NOT NULL, " +
-            "\"Conditions\" jsonb NOT NULL, " +
-            "\"Active\" boolean NOT NULL, " +
-            "\"Priority\" integer NOT NULL, " +
-            "\"RuleVersion\" integer NOT NULL, " +
+            "\"Name\" character varying(200) NOT NULL, " +
+            "\"RuleType\" character varying(100) NOT NULL, " +
+            "\"RewardPoints\" integer NOT NULL DEFAULT 0, " +
+            "\"RootGroupId\" uuid NULL, " +
+            "\"Active\" boolean NOT NULL DEFAULT true, " +
+            "\"Priority\" integer NOT NULL DEFAULT 0, " +
             "\"EffectiveFrom\" timestamp with time zone NOT NULL, " +
             "\"EffectiveTo\" timestamp with time zone NULL, " +
             "\"CreatedAt\" timestamp with time zone NOT NULL, " +
             "\"UpdatedAt\" timestamp with time zone NULL)");
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE TABLE IF NOT EXISTS \"RuleConditionGroups\" (" +
+            "\"Id\" uuid PRIMARY KEY, " +
+            "\"RuleId\" uuid NOT NULL, " +
+            "\"ParentGroupId\" uuid NULL, " +
+            "\"Logic\" character varying(3) NOT NULL, " +
+            "\"SortOrder\" integer NOT NULL DEFAULT 0, " +
+            "\"CreatedAt\" timestamp with time zone NOT NULL, " +
+            "CONSTRAINT \"FK_RuleConditionGroups_PointsRules_RuleId\" FOREIGN KEY (\"RuleId\") REFERENCES \"PointsRules\" (\"Id\") ON DELETE CASCADE, " +
+            "CONSTRAINT \"FK_RuleConditionGroups_RuleConditionGroups_ParentGroupId\" FOREIGN KEY (\"ParentGroupId\") REFERENCES \"RuleConditionGroups\" (\"Id\") ON DELETE CASCADE)");
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE TABLE IF NOT EXISTS \"RuleConditions\" (" +
+            "\"Id\" uuid PRIMARY KEY, " +
+            "\"GroupId\" uuid NOT NULL, " +
+            "\"EntityCode\" character varying(100) NOT NULL, " +
+            "\"AttributeCode\" character varying(100) NOT NULL, " +
+            "\"Operator\" character varying(20) NOT NULL, " +
+            "\"ValueJson\" jsonb NOT NULL, " +
+            "\"SortOrder\" integer NOT NULL DEFAULT 0, " +
+            "\"CreatedAt\" timestamp with time zone NOT NULL, " +
+            "CONSTRAINT \"FK_RuleConditions_RuleConditionGroups_GroupId\" FOREIGN KEY (\"GroupId\") REFERENCES \"RuleConditionGroups\" (\"Id\") ON DELETE CASCADE)");
     }
 
     public static RewardCatalogDbContext CreateRewardCatalog(string connectionString)

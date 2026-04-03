@@ -12,11 +12,11 @@ public partial class PointsRule
     public Guid TenantId { get; set; }
     public string Name { get; set; } = default!;
     public string RuleType { get; set; } = default!;
+    public int RewardPoints { get; set; }
     public Guid? RootGroupId { get; set; }
     [GraphQLIgnore] public RuleConditionGroup? RootGroup { get; set; }
     public bool Active { get; set; } = true;
     public int Priority { get; set; } = 0;
-    public int RuleVersion { get; set; } = 1;
     public DateTimeOffset EffectiveFrom { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? EffectiveTo { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

@@ -23,7 +23,6 @@ public interface IInvoicePointsRuleWithProductAttributes : IInvoicePointsRule
 /// <summary>Rule metadata for audit/traceability.</summary>
 public record InvoiceRuleMetadata(
     Guid RuleId,
-    int RuleVersion,
     string RuleType,
     int Priority,
     bool Active,

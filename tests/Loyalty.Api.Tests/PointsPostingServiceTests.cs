@@ -355,7 +355,7 @@ public class PointsPostingServiceTests
 
         var rule = new MetadataInvoicePointsRule(
             new SpendRule(100m, 10),
-            new InvoiceRuleMetadata(Guid.NewGuid(), 1, "spend", 0, true, DateTimeOffset.UtcNow, null, JsonDocument.Parse("{}")));
+            new InvoiceRuleMetadata(Guid.NewGuid(), "spend", 0, true, DateTimeOffset.UtcNow, null, JsonDocument.Parse("{}")));
 
         var service = new PointsPostingService(ledger, customers, integration, products, new SingleRuleProvider(rule));
         await service.AwardInvoiceAsync(new InvoiceUpsertRequest
