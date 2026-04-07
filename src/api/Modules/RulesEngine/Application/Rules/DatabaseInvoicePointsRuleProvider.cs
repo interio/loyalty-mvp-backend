@@ -139,12 +139,12 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                     var conditionMap = BuildConditionMap(rootConditions);
                     if (conditionMap.Count == 0)
                         return null;
-                    var sku = GetString(conditionMap, "sku");
+                    var skus = GetSkuValues(rootConditions, conditionMap);
                     var quantityStep = GetDecimal(conditionMap, "quantityStep");
                     var rewardPoints = ResolveRewardPoints(rule, rootConditions);
-                    if (string.IsNullOrWhiteSpace(sku) || quantityStep <= 0 || rewardPoints <= 0)
-                        throw new ArgumentException("Sku quantity rule requires sku, quantityStep > 0, rewardPoints > 0.");
-                    return new SkuQuantityRule(sku, quantityStep, rewardPoints);
+                    if (skus.Count == 0 || quantityStep <= 0 || rewardPoints <= 0)
+                        throw new ArgumentException("Sku quantity rule requires at least one sku, quantityStep > 0, rewardPoints > 0.");
+                    return new SkuQuantityRule(skus, quantityStep, rewardPoints);
                 }
             case "complex_rule":
             case "complex":
@@ -197,6 +197,75 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
         if (!map.TryGetValue(name, out var raw) || string.IsNullOrWhiteSpace(raw)) return string.Empty;
         return raw;
     }
+
+    private static IReadOnlyList<string> GetSkuValues(
+        IReadOnlyList<RuleCondition> rootConditions,
+        IReadOnlyDictionary<string, string?> conditionMap)
+    {
+        var skuListCondition = rootConditions.FirstOrDefault(c =>
+            string.Equals(c.EntityCode, "rule", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(c.AttributeCode, "skus", StringComparison.OrdinalIgnoreCase));
+        if (skuListCondition is not null)
+        {
+            var parsed = ParseSkuValues(skuListCondition.ValueJson.RootElement);
+            if (parsed.Count > 0)
+                return parsed;
+        }
+
+        var skuCondition = rootConditions.FirstOrDefault(c =>
+            string.Equals(c.EntityCode, "rule", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(c.AttributeCode, "sku", StringComparison.OrdinalIgnoreCase));
+        if (skuCondition is not null)
+        {
+            var parsed = ParseSkuValues(skuCondition.ValueJson.RootElement);
+            if (parsed.Count > 0)
+                return parsed;
+        }
+
+        var legacySku = GetString(conditionMap, "sku");
+        if (!string.IsNullOrWhiteSpace(legacySku))
+            return NormalizeSkuValues(new[] { legacySku });
+
+        return Array.Empty<string>();
+    }
+
+    private static IReadOnlyList<string> ParseSkuValues(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Array)
+            return NormalizeSkuValues(element.EnumerateArray().Select(ToScalarString));
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            var raw = element.GetString()?.Trim();
+            if (string.IsNullOrWhiteSpace(raw))
+                return Array.Empty<string>();
+
+            if (raw.StartsWith("[", StringComparison.Ordinal) && raw.EndsWith("]", StringComparison.Ordinal))
+            {
+                try
+                {
+                    using var parsed = JsonDocument.Parse(raw);
+                    if (parsed.RootElement.ValueKind == JsonValueKind.Array)
+                        return NormalizeSkuValues(parsed.RootElement.EnumerateArray().Select(ToScalarString));
+                }
+                catch (JsonException)
+                {
+                }
+            }
+
+            return NormalizeSkuValues(new[] { raw });
+        }
+
+        return NormalizeSkuValues(new[] { ToScalarString(element) });
+    }
+
+    private static IReadOnlyList<string> NormalizeSkuValues(IEnumerable<string?> values) =>
+        values
+            .Select(v => v?.Trim())
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(v => v!)
+            .ToList();
 
     private static int ResolveRewardPoints(PointsRule rule, IReadOnlyList<RuleCondition> conditions)
     {

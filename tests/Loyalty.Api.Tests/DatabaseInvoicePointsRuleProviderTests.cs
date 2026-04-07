@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Loyalty.Api.Modules.RulesEngine.Application.Invoices;
 using Loyalty.Api.Modules.RulesEngine.Application.Rules;
 using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
@@ -238,5 +240,77 @@ public class DatabaseInvoicePointsRuleProviderTests
 
         Assert.Single(rules);
         Assert.Equal("Spend(100->10)", rules[0].Name);
+    }
+
+    [Fact]
+    public async Task GetRulesAsync_SkuQuantityCampaign_AwardsPointsPerSku()
+    {
+        await using var db = CreateContext();
+        var tenantId = Guid.NewGuid();
+
+        var rule = new PointsRule
+        {
+            TenantId = tenantId,
+            Name = "SKU quantity",
+            RuleType = "sku_quantity",
+            Active = true,
+            Priority = 0,
+            RewardPoints = 10,
+            EffectiveFrom = DateTimeOffset.UtcNow.AddMinutes(-1)
+        };
+
+        var rootGroup = new RuleConditionGroup
+        {
+            Id = Guid.NewGuid(),
+            RuleId = rule.Id,
+            Logic = "AND",
+            SortOrder = 0,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        rule.RootGroupId = rootGroup.Id;
+
+        db.PointsRules.Add(rule);
+        db.RuleConditionGroups.Add(rootGroup);
+        db.RuleConditions.AddRange(
+            new RuleCondition
+            {
+                GroupId = rootGroup.Id,
+                EntityCode = "rule",
+                AttributeCode = "skus",
+                Operator = "eq",
+                ValueJson = JsonDocument.Parse("[\"SKU1\",\"SKU2\",\"SKU3\"]"),
+                SortOrder = 0,
+                CreatedAt = DateTimeOffset.UtcNow
+            },
+            new RuleCondition
+            {
+                GroupId = rootGroup.Id,
+                EntityCode = "rule",
+                AttributeCode = "quantityStep",
+                Operator = "eq",
+                ValueJson = JsonDocument.Parse("10"),
+                SortOrder = 1,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+        await db.SaveChangesAsync();
+
+        var provider = new DatabaseInvoicePointsRuleProvider(db, new NullLogger<DatabaseInvoicePointsRuleProvider>());
+        var rules = await provider.GetRulesAsync(tenantId);
+
+        Assert.Single(rules);
+
+        var points = rules[0].CalculatePoints(new InvoiceUpsertRequest
+        {
+            Lines = new List<InvoiceLineRequest>
+            {
+                new() { Sku = "SKU1", Quantity = 10m, NetAmount = 0 },
+                new() { Sku = "SKU2", Quantity = 9m, NetAmount = 0 },
+                new() { Sku = "SKU3", Quantity = 20m, NetAmount = 0 }
+            }
+        });
+
+        Assert.Equal(30, points);
     }
 }

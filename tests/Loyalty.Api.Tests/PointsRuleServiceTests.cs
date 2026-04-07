@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Loyalty.Api.Modules.RulesEngine.Application;
 using Loyalty.Api.Modules.RulesEngine.Domain;
@@ -85,6 +86,24 @@ public class PointsRuleServiceTests
                 }
             }));
         Assert.Contains("rewardPoints must be greater than 0", exRewardPoints.Message);
+
+        var exSkuList = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UpsertAsync(new[]
+            {
+                new PointsRuleUpsertRequest
+                {
+                    TenantId = Guid.NewGuid(),
+                    Name = "Rule 4",
+                    RuleType = "sku_quantity",
+                    CreatedBy = "admin@example.com",
+                    RewardPoints = 10,
+                    Conditions = new Dictionary<string, object?>
+                    {
+                        ["quantityStep"] = 10
+                    }
+                }
+            }));
+        Assert.Contains("At least one sku is required", exSkuList.Message);
     }
 
     [Fact]
@@ -128,6 +147,38 @@ public class PointsRuleServiceTests
         Assert.False(await service.ExistsAsync(rule.Id, tenantId));
         Assert.False(await db.RuleConditionGroups.AnyAsync(g => g.RuleId == rule.Id));
         Assert.False(await db.RuleConditions.AnyAsync());
+    }
+
+    [Fact]
+    public async Task UpsertAsync_SkuQuantity_PersistsSkuArrayCondition()
+    {
+        await using var db = CreateContext();
+        var service = new PointsRuleService(db);
+        var tenantId = Guid.NewGuid();
+
+        await service.UpsertAsync(new[]
+        {
+            new PointsRuleUpsertRequest
+            {
+                TenantId = tenantId,
+                Name = "Sku campaign",
+                RuleType = "sku_quantity",
+                CreatedBy = "admin@example.com",
+                RewardPoints = 10,
+                Conditions = new Dictionary<string, object?>
+                {
+                    ["skus"] = new[] { "SKU1", "SKU2", "SKU3" },
+                    ["quantityStep"] = 10
+                }
+            }
+        });
+
+        var rule = await db.PointsRules.FirstAsync();
+        var group = await db.RuleConditionGroups.FirstAsync(g => g.RuleId == rule.Id);
+        var skuCondition = await db.RuleConditions.FirstAsync(c => c.GroupId == group.Id && c.AttributeCode == "skus");
+
+        Assert.Equal(JsonValueKind.Array, skuCondition.ValueJson.RootElement.ValueKind);
+        Assert.Equal(3, skuCondition.ValueJson.RootElement.GetArrayLength());
     }
 
     [Fact]

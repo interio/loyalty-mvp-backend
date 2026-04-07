@@ -45,6 +45,41 @@ public class RulesTests
     }
 
     [Fact]
+    public void SkuQuantityRule_ComputesPointsPerSkuSeparately()
+    {
+        var rule = new SkuQuantityRule(new[] { "SKU1", "SKU2", "SKU3" }, 10m, 10);
+        var request = new InvoiceUpsertRequest
+        {
+            Lines = new List<InvoiceLineRequest>
+            {
+                new() { Sku = "SKU1", Quantity = 10m, NetAmount = 0 },
+                new() { Sku = "SKU2", Quantity = 9m, NetAmount = 0 },
+                new() { Sku = "SKU3", Quantity = 20m, NetAmount = 0 }
+            }
+        };
+
+        var points = rule.CalculatePoints(request);
+        Assert.Equal(30, points);
+    }
+
+    [Fact]
+    public void SkuQuantityRule_AppliesWhenAnyConfiguredSkuMatches()
+    {
+        var rule = new SkuQuantityRule(new[] { "SKU1", "SKU2", "SKU3" }, 10m, 10);
+        var request = new InvoiceUpsertRequest
+        {
+            Lines = new List<InvoiceLineRequest>
+            {
+                new() { Sku = "UNRELATED", Quantity = 999m, NetAmount = 0 },
+                new() { Sku = "SKU2", Quantity = 10m, NetAmount = 0 }
+            }
+        };
+
+        var points = rule.CalculatePoints(request);
+        Assert.Equal(10, points);
+    }
+
+    [Fact]
     public void HardcodedRulesProvider_AggregatesPoints()
     {
         var provider = new HardcodedRulesProvider();

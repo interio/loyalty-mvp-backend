@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Collections;
 using System.Linq;
 using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
@@ -405,6 +406,22 @@ public class PointsRuleService
         if (string.IsNullOrWhiteSpace(req.RuleType)) throw new ArgumentException("ruleType is required.");
         if (string.IsNullOrWhiteSpace(req.CreatedBy)) throw new ArgumentException("createdBy is required.");
         if (ResolveRewardPoints(req) <= 0) throw new ArgumentException("rewardPoints must be greater than 0.");
+        ValidateRuleSpecific(req);
+    }
+
+    private static void ValidateRuleSpecific(PointsRuleUpsertRequest req)
+    {
+        var type = req.RuleType.Trim().ToLowerInvariant();
+        if (type is not ("sku_quantity" or "sku_quantity_rule"))
+            return;
+
+        var quantityStep = GetConditionDecimal(req.Conditions, "quantityStep");
+        if (quantityStep <= 0)
+            throw new ArgumentException("quantityStep must be greater than 0 for sku quantity rule.");
+
+        var skus = GetSkuValues(req.Conditions);
+        if (skus.Count == 0)
+            throw new ArgumentException("At least one sku is required for sku quantity rule.");
     }
 
     private static int ResolveRewardPoints(PointsRuleUpsertRequest req)
@@ -454,6 +471,150 @@ public class PointsRuleService
                 return int.TryParse(value.ToString(), out var parsed) ? parsed : 0;
         }
     }
+
+    private static decimal GetConditionDecimal(Dictionary<string, object?>? conditions, string key)
+    {
+        if (!TryGetConditionValue(conditions, key, out var raw) || raw is null)
+            return 0;
+
+        switch (raw)
+        {
+            case decimal decimalValue:
+                return decimalValue;
+            case int intValue:
+                return intValue;
+            case long longValue:
+                return longValue;
+            case double doubleValue:
+                return (decimal)doubleValue;
+            case float floatValue:
+                return (decimal)floatValue;
+            case JsonElement jsonElement when jsonElement.ValueKind == JsonValueKind.Number && jsonElement.TryGetDecimal(out var number):
+                return number;
+            case JsonElement jsonElement when jsonElement.ValueKind == JsonValueKind.String &&
+                                              decimal.TryParse(jsonElement.GetString(), out var fromString):
+                return fromString;
+            default:
+                return decimal.TryParse(raw.ToString(), out var parsed) ? parsed : 0;
+        }
+    }
+
+    private static IReadOnlyList<string> GetSkuValues(Dictionary<string, object?>? conditions)
+    {
+        if (TryGetConditionValue(conditions, "skus", out var listRaw))
+        {
+            var parsed = ParseSkuValues(listRaw);
+            if (parsed.Count > 0)
+                return parsed;
+        }
+
+        if (TryGetConditionValue(conditions, "sku", out var singleRaw))
+        {
+            var parsed = ParseSkuValues(singleRaw);
+            if (parsed.Count > 0)
+                return parsed;
+        }
+
+        return Array.Empty<string>();
+    }
+
+    private static bool TryGetConditionValue(Dictionary<string, object?>? conditions, string key, out object? value)
+    {
+        value = null;
+        if (conditions is null || conditions.Count == 0)
+            return false;
+
+        foreach (var (candidateKey, candidateValue) in conditions)
+        {
+            if (!string.Equals(candidateKey, key, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            value = candidateValue;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyList<string> ParseSkuValues(object? raw)
+    {
+        if (raw is null)
+            return Array.Empty<string>();
+
+        switch (raw)
+        {
+            case JsonElement jsonElement:
+                return ParseSkuValues(jsonElement);
+            case string stringValue:
+            {
+                var trimmed = stringValue.Trim();
+                if (trimmed.StartsWith("[", StringComparison.Ordinal) &&
+                    trimmed.EndsWith("]", StringComparison.Ordinal))
+                {
+                    try
+                    {
+                        using var parsed = JsonDocument.Parse(trimmed);
+                        if (parsed.RootElement.ValueKind == JsonValueKind.Array)
+                            return ParseSkuValues(parsed.RootElement);
+                    }
+                    catch (JsonException)
+                    {
+                    }
+                }
+
+                return NormalizeSkuValues(new[] { trimmed });
+            }
+            case IEnumerable<string> stringList:
+                return NormalizeSkuValues(stringList);
+            case IEnumerable enumerable:
+            {
+                var values = new List<string>();
+                foreach (var item in enumerable)
+                {
+                    if (item is null)
+                        continue;
+                    values.Add(item.ToString() ?? string.Empty);
+                }
+
+                return NormalizeSkuValues(values);
+            }
+            default:
+                return NormalizeSkuValues(new[] { raw.ToString() ?? string.Empty });
+        }
+    }
+
+    private static IReadOnlyList<string> ParseSkuValues(JsonElement jsonElement)
+    {
+        if (jsonElement.ValueKind == JsonValueKind.Array)
+        {
+            var list = new List<string>();
+            foreach (var item in jsonElement.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String)
+                    list.Add(item.GetString() ?? string.Empty);
+                else if (item.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
+                    list.Add(item.ToString());
+            }
+
+            return NormalizeSkuValues(list);
+        }
+
+        if (jsonElement.ValueKind == JsonValueKind.String)
+            return NormalizeSkuValues(new[] { jsonElement.GetString() ?? string.Empty });
+
+        if (jsonElement.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+            return Array.Empty<string>();
+
+        return NormalizeSkuValues(new[] { jsonElement.ToString() });
+    }
+
+    private static IReadOnlyList<string> NormalizeSkuValues(IEnumerable<string> values) =>
+        values
+            .Select(v => v?.Trim())
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(v => v!)
+            .ToList();
 
     private static void ValidateComplex(ComplexRuleCreateRequest req)
     {
