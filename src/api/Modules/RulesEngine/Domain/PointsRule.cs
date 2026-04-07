@@ -11,6 +11,7 @@ public partial class PointsRule
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
     public string Name { get; set; } = default!;
+    public string? Description { get; set; }
     public string RuleType { get; set; } = default!;
     public int RewardPoints { get; set; }
     public Guid? RootGroupId { get; set; }

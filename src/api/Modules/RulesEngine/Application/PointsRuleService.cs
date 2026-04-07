@@ -97,6 +97,7 @@ public class PointsRuleService
 
             rule.TenantId = req.TenantId;
             rule.Name = req.Name.Trim();
+            rule.Description = NormalizeDescription(req.Description);
             rule.RuleType = req.RuleType.Trim();
             // New rules must always be inactive first; activation is an explicit follow-up action.
             rule.Active = false;
@@ -171,6 +172,7 @@ public class PointsRuleService
             Id = Guid.NewGuid(),
             TenantId = request.TenantId,
             Name = request.Name.Trim(),
+            Description = NormalizeDescription(request.Description),
             RuleType = string.IsNullOrWhiteSpace(request.RuleType) ? "complex_rule" : request.RuleType.Trim(),
             // New rules must always be inactive first; activation is an explicit follow-up action.
             Active = false,
@@ -513,6 +515,17 @@ public class PointsRuleService
             : normalized[..320];
     }
 
+    private static string? NormalizeDescription(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+            return null;
+
+        var normalized = description.Trim();
+        return normalized.Length <= 500
+            ? normalized
+            : normalized[..500];
+    }
+
     private void AddConditionNodes(
         Guid ruleId,
         Guid parentGroupId,
@@ -564,6 +577,7 @@ public class PointsRuleUpsertRequest
     public Guid? Id { get; set; }
     public Guid TenantId { get; set; }
     public string Name { get; set; } = default!;
+    public string? Description { get; set; }
     public string RuleType { get; set; } = default!;
     public int? RewardPoints { get; set; }
     public Dictionary<string, object?>? Conditions { get; set; }
@@ -584,6 +598,7 @@ public class ComplexRuleCreateRequest
 {
     public Guid TenantId { get; set; }
     public string Name { get; set; } = default!;
+    public string? Description { get; set; }
     public string? RuleType { get; set; }
     // Temporary: UI sends creator email until proper backend auth/claims are available.
     public string? CreatedBy { get; set; }

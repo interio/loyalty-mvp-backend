@@ -64,6 +64,7 @@ public class IntegrationDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Description).HasMaxLength(500);
             e.Property(x => x.RuleType).IsRequired().HasMaxLength(100);
             e.Property(x => x.RewardPoints).HasDefaultValue(0);
             e.Property(x => x.Priority).HasDefaultValue(0);

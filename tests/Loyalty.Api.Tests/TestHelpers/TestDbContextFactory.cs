@@ -170,6 +170,7 @@ public static class TestDbContextFactory
             "\"Id\" uuid PRIMARY KEY, " +
             "\"TenantId\" uuid NOT NULL, " +
             "\"Name\" character varying(200) NOT NULL, " +
+            "\"Description\" character varying(500) NULL, " +
             "\"RuleType\" character varying(100) NOT NULL, " +
             "\"RewardPoints\" integer NOT NULL DEFAULT 0, " +
             "\"RootGroupId\" uuid NULL, " +
