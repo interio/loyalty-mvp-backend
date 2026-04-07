@@ -8,6 +8,30 @@ This project is a headless modular backend service designed to be split into mic
 - Optional: set `ALLOWED_ORIGINS` (comma-separated, or `*`) to control API CORS policy.
 - Node/PNPM not required (GraphQL served by Hot Chocolate in ASP.NET Core)
 
+## Container-first commands (recommended)
+From this repo root (`loyalty-mvp-backend`), with infra Postgres running (`../loyalty-mvp-infra/dev.sh up`):
+```
+docker run --rm \
+  --network=loyalty-mvp-infra_loyalty \
+  --env-file ../loyalty-mvp-infra/.env \
+  -e ConnectionStrings__Default="Host=postgres;Port=5432;Database=loyalty;Username=loyalty;Password=loyalty" \
+  -v "$PWD":/src \
+  -w /src \
+  mcr.microsoft.com/dotnet/sdk:8.0 \
+  sh -lc "dotnet restore LoyaltyMvp.sln && dotnet test tests/Loyalty.Api.Tests/Loyalty.Api.Tests.csproj"
+```
+For EF migrations in container:
+```
+docker run --rm \
+  --network=loyalty-mvp-infra_loyalty \
+  --env-file ../loyalty-mvp-infra/.env \
+  -e ConnectionStrings__Default="Host=postgres;Port=5432;Database=loyalty;Username=loyalty;Password=loyalty" \
+  -v "$PWD":/src \
+  -w /src \
+  mcr.microsoft.com/dotnet/sdk:8.0 \
+  sh -lc "dotnet restore LoyaltyMvp.sln && dotnet tool install --tool-path /tmp/dotnet-tools dotnet-ef && /tmp/dotnet-tools/dotnet-ef database update --context IntegrationDbContext --project src/api --startup-project src/api"
+```
+
 ## Module structure
 - `src/api/Modules/Tenants` — tenant domain, GraphQL resolvers, TenantsDbContext.
 - `src/api/Modules/Customers` — customers/users domain, GraphQL resolvers, CustomersDbContext.
@@ -74,7 +98,7 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
     - Products: `products` (required `tenantId`), `productsSearch` (required `tenantId` + `search`), `productsPage` (required `tenantId`, optional `search`), `distributorsByTenant`, `distributorsByTenantPage` (optional `search`), `distributorsByTenantSearch`, `createDistributor` - when authenticated, `tenantId` must match tenant claim
     - RewardCatalog: `rewardProducts`, `rewardProductsSearch`, `rewardProductsPage` (optional `search`), `rewardProduct`, `upsertRewardProduct`, `deleteRewardProduct`
     - RewardOrders: `rewardOrdersByTenant`, `rewardOrdersByTenantPage`, `rewardOrdersByTenantCursor`, `rewardOrdersByCustomer`, `rewardOrder`, `updateRewardOrderStatus`, `placeRewardOrder`, `placeRewardOrderOnBehalf`
-    - RulesEngine: `pointsRulesByTenant`, `pointsRulesByTenantPage`, `ruleConditionTree`, `ruleConditionTreeFlat`, `invoicesByTenant` (with `take`), `invoicesByTenantPage` (optional `search`), `invoiceById`, `invoicesByTenantCursor` (optional `search`)
+    - RulesEngine: `pointsRulesByTenant`, `pointsRulesByTenantPage`, `campaignRulesByTenant`, `ruleConditionTree`, `ruleConditionTreeFlat`, `invoicesByTenant` (with `take`), `invoicesByTenantPage` (optional `search`), `invoiceById`, `invoicesByTenantCursor` (optional `search`)
     - Rules catalog metadata (RulesEngine): `ruleEntities`, `ruleAttributes`, `ruleAttributeOperators`, `ruleAttributeOptions`, `ruleOperatorCatalog`, `createRuleEntity`, `updateRuleEntity`, `deleteRuleEntity`, `createRuleAttribute`, `updateRuleAttribute`, `deleteRuleAttribute`, `setRuleAttributeOperators`, `createRuleAttributeOption`, `updateRuleAttributeOption`, `deleteRuleAttributeOption`
   - `*Cursor` queries use keyset pagination with `after` + `take` and return `pageInfo { endCursor, hasNextPage }`.
 - REST (RulesEngine): `POST /api/v1/integration/invoices/apply`
@@ -88,6 +112,11 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
 
 ## Tests
 ```
+dotnet test LoyaltyMvp.sln
+```
+Postgres-backed tests default to host `postgres` (`TEST_CONNECTIONSTRING` fallback). If you run tests locally (outside Docker network), set `TEST_CONNECTIONSTRING` explicitly, for example:
+```
+export TEST_CONNECTIONSTRING="Host=localhost;Port=5432;Database=postgres;Username=loyalty;Password=loyalty"
 dotnet test LoyaltyMvp.sln
 ```
 Includes unit/integration coverage for tenants, customers/users, products/distributors, rules engine (including complex rules + catalog metadata), invoice processing/idempotency, reward catalog, reward orders, and ledger behaviors (`tests/Loyalty.Api.Tests`).
