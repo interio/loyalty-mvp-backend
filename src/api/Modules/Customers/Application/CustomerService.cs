@@ -4,7 +4,6 @@ using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.Transactions;
-using Npgsql.EntityFrameworkCore.PostgreSQL;
 using Loyalty.Api.Modules.Shared;
 
 namespace Loyalty.Api.Modules.Customers.Application;
@@ -15,7 +14,13 @@ public record CreateCustomerCommand(
     string Name,
     string? ContactEmail,
     string? ExternalId,
-    string? Tier = null);
+    string? Tier = null,
+    CustomerAddress? Address = null,
+    string? PhoneNumber = null,
+    string? Type = null,
+    string? BusinessSegment = null,
+    DateTimeOffset? OnboardDate = null,
+    int? Status = null);
 
 /// <summary>Customer module application contract.</summary>
 public interface ICustomerService
@@ -86,7 +91,12 @@ public interface ICustomerService
             .Where(c =>
                 EF.Functions.ToTsVector(
                         "simple",
-                        (c.Name ?? string.Empty) + " " + (c.ExternalId ?? string.Empty) + " " + (c.ContactEmail ?? string.Empty))
+                        (c.Name ?? string.Empty) + " " +
+                        (c.ExternalId ?? string.Empty) + " " +
+                        (c.ContactEmail ?? string.Empty) + " " +
+                        (c.PhoneNumber ?? string.Empty) + " " +
+                        (c.Type ?? string.Empty) + " " +
+                        (c.BusinessSegment ?? string.Empty))
                     .Matches(EF.Functions.PlainToTsQuery("simple", term)))
             .OrderBy(c => c.Name)
             .Take(take);
@@ -109,7 +119,12 @@ public interface ICustomerService
             baseQuery = baseQuery.Where(c =>
                 EF.Functions.ToTsVector(
                         "simple",
-                        (c.Name ?? string.Empty) + " " + (c.ExternalId ?? string.Empty) + " " + (c.ContactEmail ?? string.Empty))
+                        (c.Name ?? string.Empty) + " " +
+                        (c.ExternalId ?? string.Empty) + " " +
+                        (c.ContactEmail ?? string.Empty) + " " +
+                        (c.PhoneNumber ?? string.Empty) + " " +
+                        (c.Type ?? string.Empty) + " " +
+                        (c.BusinessSegment ?? string.Empty))
                     .Matches(EF.Functions.PlainToTsQuery("simple", term)));
         }
 
@@ -144,19 +159,35 @@ public interface ICustomerService
         if (string.IsNullOrWhiteSpace(name))
             throw new Exception("Customer name is required.");
 
-        var contactEmail = command.ContactEmail?.Trim();
-        var externalId = command.ExternalId?.Trim();
+        var contactEmail = TrimOrNull(command.ContactEmail);
+        var externalId = TrimOrNull(command.ExternalId);
+        var phoneNumber = TrimOrNull(command.PhoneNumber);
+        var customerType = TrimOrNull(command.Type);
+        var businessSegment = TrimOrNull(command.BusinessSegment);
+        var address = NormalizeAddress(command.Address);
+        var onboardDate = command.OnboardDate ?? DateTimeOffset.UtcNow;
+
         var tier = CustomerTierCatalog.NormalizeOrDefault(command.Tier);
         if (!CustomerTierCatalog.IsSupported(tier))
             throw new Exception("Customer tier must be one of: bronze, silver, gold, platinum.");
+
+        var status = command.Status ?? CustomerStatusCatalog.Active;
+        if (!CustomerStatusCatalog.IsSupported(status))
+            throw new Exception("Customer status must be one of: 0 (inactive), 1 (active), 2 (suspended).");
 
         var customer = new Customer
         {
             TenantId = command.TenantId,
             Name = name,
-            ContactEmail = string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail,
-            ExternalId = string.IsNullOrWhiteSpace(externalId) ? null : externalId,
-            Tier = tier
+            ContactEmail = contactEmail,
+            ExternalId = externalId,
+            Tier = tier,
+            Address = address,
+            PhoneNumber = phoneNumber,
+            Type = customerType,
+            BusinessSegment = businessSegment,
+            OnboardDate = onboardDate,
+            Status = status
         };
 
         if (ShouldShareTransaction)
@@ -243,6 +274,35 @@ public interface ICustomerService
         }
 
         return customers;
+    }
+
+    private static string? TrimOrNull(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
+    }
+
+    private static CustomerAddress? NormalizeAddress(CustomerAddress? value)
+    {
+        if (value is null) return null;
+
+        var normalized = new CustomerAddress
+        {
+            Address = TrimOrNull(value.Address),
+            CountryCode = TrimOrNull(value.CountryCode)?.ToUpperInvariant(),
+            PostalCode = TrimOrNull(value.PostalCode),
+            Region = TrimOrNull(value.Region)
+        };
+
+        if (normalized.Address is null &&
+            normalized.CountryCode is null &&
+            normalized.PostalCode is null &&
+            normalized.Region is null)
+        {
+            return null;
+        }
+
+        return normalized;
     }
 
 }

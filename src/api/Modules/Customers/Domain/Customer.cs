@@ -38,6 +38,24 @@ public class Customer
     /// </summary>
     public string Tier { get; set; } = CustomerTierCatalog.Bronze;
 
+    /// <summary>Structured address details, persisted as JSON.</summary>
+    public CustomerAddress? Address { get; set; }
+
+    /// <summary>Primary contact phone number.</summary>
+    public string? PhoneNumber { get; set; }
+
+    /// <summary>Customer type such as bar, restaurant, hotel, or shop.</summary>
+    public string? Type { get; set; }
+
+    /// <summary>Commercial/business segment.</summary>
+    public string? BusinessSegment { get; set; }
+
+    /// <summary>Date when customer was onboarded into this platform.</summary>
+    public DateTimeOffset OnboardDate { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Operational status code: 0 inactive, 1 active, 2 suspended.</summary>
+    public int Status { get; set; } = CustomerStatusCatalog.Active;
+
     /// <summary>Creation timestamp in UTC.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -49,4 +67,20 @@ public class Customer
 
     /// <summary>Immutable ledger of points movements for this Customer.</summary>
     public List<PointsTransaction> Transactions { get; set; } = new();
+}
+
+/// <summary>Address payload persisted in JSON for customer profile data.</summary>
+public class CustomerAddress
+{
+    /// <summary>Street and building details.</summary>
+    public string? Address { get; set; }
+
+    /// <summary>ISO country code (for example "PL", "DE", "US").</summary>
+    public string? CountryCode { get; set; }
+
+    /// <summary>Postal or ZIP code.</summary>
+    public string? PostalCode { get; set; }
+
+    /// <summary>Administrative region/state/province.</summary>
+    public string? Region { get; set; }
 }

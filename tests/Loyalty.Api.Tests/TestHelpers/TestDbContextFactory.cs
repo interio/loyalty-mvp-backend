@@ -50,8 +50,21 @@ public static class TestDbContextFactory
             "\"ContactEmail\" character varying(320), " +
             "\"ExternalId\" character varying(200), " +
             "\"Tier\" character varying(20) NOT NULL DEFAULT 'bronze', " +
+            "\"Address\" jsonb NULL, " +
+            "\"PhoneNumber\" character varying(50) NULL, " +
+            "\"Type\" character varying(100) NULL, " +
+            "\"BusinessSegment\" character varying(120) NULL, " +
+            "\"OnboardDate\" timestamp with time zone NOT NULL DEFAULT now(), " +
+            "\"Status\" integer NOT NULL DEFAULT 1, " +
             "\"CreatedAt\" timestamp with time zone NOT NULL)");
         await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Customers\" ADD COLUMN IF NOT EXISTS \"Tier\" character varying(20) NOT NULL DEFAULT 'bronze'");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Customers\" ADD COLUMN IF NOT EXISTS \"Address\" jsonb NULL");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Customers\" ADD COLUMN IF NOT EXISTS \"PhoneNumber\" character varying(50) NULL");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Customers\" ADD COLUMN IF NOT EXISTS \"Type\" character varying(100) NULL");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Customers\" ADD COLUMN IF NOT EXISTS \"BusinessSegment\" character varying(120) NULL");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Customers\" ADD COLUMN IF NOT EXISTS \"OnboardDate\" timestamp with time zone NOT NULL DEFAULT now()");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Customers\" ADD COLUMN IF NOT EXISTS \"Status\" integer NOT NULL DEFAULT 1");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Customers\" ALTER COLUMN \"Status\" SET DEFAULT 1");
 
         await db.Database.ExecuteSqlRawAsync(
             "CREATE TABLE IF NOT EXISTS \"Users\" (" +

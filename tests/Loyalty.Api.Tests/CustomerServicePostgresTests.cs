@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Loyalty.Api.Modules.Customers.Application;
+using Loyalty.Api.Modules.Customers.Domain;
 using Loyalty.Api.Modules.LoyaltyLedger.Infrastructure.Persistence;
 using Loyalty.Api.Modules.Tenants.Application;
 using Loyalty.Api.Tests.TestHelpers;
@@ -89,5 +90,57 @@ public class CustomerServicePostgresTests
         var list = await customers.ListByTenantAsync(tenant.Id);
         Assert.Single(list);
         Assert.NotNull(list[0].PointsAccount);
+    }
+
+    [Fact]
+    public async Task CreateAsync_PersistsExtendedProfileFields()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var customersDb = TestDbContextFactory.CreateCustomers(db.ConnectionString);
+        await using var ledgerDb = TestDbContextFactory.CreateLedger(db.ConnectionString);
+
+        await TestDbContextFactory.EnsureCustomersSchemaAsync(customersDb);
+        await TestDbContextFactory.EnsureLedgerSchemaAsync(ledgerDb);
+
+        var customers = new CustomerService(customersDb, ledgerDb);
+
+        var tenant = new Loyalty.Api.Modules.Tenants.Domain.Tenant { Name = "Tenant Profile" };
+        customersDb.Tenants.Add(tenant);
+        await customersDb.SaveChangesAsync();
+
+        var onboardDate = new DateTimeOffset(2026, 4, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var customer = await customers.CreateAsync(new CreateCustomerCommand(
+            tenant.Id,
+            "Outlet Profile",
+            "profile@test.com",
+            "PROFILE-1",
+            "gold",
+            new CustomerAddress
+            {
+                Address = "Main Street 10",
+                CountryCode = "pl",
+                PostalCode = "00-001",
+                Region = "Mazowieckie"
+            },
+            "+48 555 123 456",
+            "bar",
+            "on-trade",
+            onboardDate,
+            CustomerStatusCatalog.Suspended));
+
+        customersDb.ChangeTracker.Clear();
+        var persisted = await customersDb.Customers.AsNoTracking().FirstAsync(c => c.Id == customer.Id);
+
+        Assert.NotNull(persisted.Address);
+        Assert.Equal("Main Street 10", persisted.Address!.Address);
+        Assert.Equal("PL", persisted.Address.CountryCode);
+        Assert.Equal("00-001", persisted.Address.PostalCode);
+        Assert.Equal("Mazowieckie", persisted.Address.Region);
+        Assert.Equal("+48 555 123 456", persisted.PhoneNumber);
+        Assert.Equal("bar", persisted.Type);
+        Assert.Equal("on-trade", persisted.BusinessSegment);
+        Assert.Equal(onboardDate, persisted.OnboardDate);
+        Assert.Equal(CustomerStatusCatalog.Suspended, persisted.Status);
     }
 }

@@ -25,6 +25,7 @@ public class LedgerDbContext : DbContext
         modelBuilder.Entity<Customer>(e =>
         {
             e.HasKey(x => x.Id);
+            e.Ignore(x => x.Address);
             e.Property(x => x.Name).IsRequired().HasMaxLength(300);
             e.ToTable("Customers", b => b.ExcludeFromMigrations());
         });
