@@ -20,7 +20,7 @@ docker run --rm \
   mcr.microsoft.com/dotnet/sdk:8.0 \
   sh -lc "dotnet restore LoyaltyMvp.sln && dotnet test tests/Loyalty.Api.Tests/Loyalty.Api.Tests.csproj"
 ```
-For EF migrations in container:
+For EF migrations in container (all contexts):
 ```
 docker run --rm \
   --network=loyalty-mvp-infra_loyalty \
@@ -29,7 +29,7 @@ docker run --rm \
   -v "$PWD":/src \
   -w /src \
   mcr.microsoft.com/dotnet/sdk:8.0 \
-  sh -lc "dotnet restore LoyaltyMvp.sln && dotnet tool install --tool-path /tmp/dotnet-tools dotnet-ef && /tmp/dotnet-tools/dotnet-ef database update --context IntegrationDbContext --project src/api --startup-project src/api"
+  sh -lc "dotnet restore LoyaltyMvp.sln && dotnet tool install --tool-path /tmp/dotnet-tools dotnet-ef && /tmp/dotnet-tools/dotnet-ef database update --context TenantsDbContext --project src/api --startup-project src/api && /tmp/dotnet-tools/dotnet-ef database update --context CustomersDbContext --project src/api --startup-project src/api && /tmp/dotnet-tools/dotnet-ef database update --context LedgerDbContext --project src/api --startup-project src/api && /tmp/dotnet-tools/dotnet-ef database update --context IntegrationDbContext --project src/api --startup-project src/api && /tmp/dotnet-tools/dotnet-ef database update --context ProductsDbContext --project src/api --startup-project src/api && /tmp/dotnet-tools/dotnet-ef database update --context RewardCatalogDbContext --project src/api --startup-project src/api && /tmp/dotnet-tools/dotnet-ef database update --context RewardOrdersDbContext --project src/api --startup-project src/api"
 ```
 
 ## Module structure

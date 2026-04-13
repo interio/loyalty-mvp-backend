@@ -172,18 +172,18 @@ public class RewardCatalogServiceTests
         });
         await catalogDb.SaveChangesAsync();
 
-        await service.ReserveAsync(productId, 3);
-        await service.ReleaseAsync(productId, 0);
-        await service.ReleaseAsync(productId, 2);
+        await service.ReserveAsync(tenantId, productId, 3);
+        await service.ReleaseAsync(tenantId, productId, 0);
+        await service.ReleaseAsync(tenantId, productId, 2);
 
         catalogDb.ChangeTracker.Clear();
         var inventory = await catalogDb.RewardInventories.AsNoTracking().FirstAsync();
         Assert.Equal(9, inventory.AvailableQuantity);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReserveAsync(productId, 20));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReserveAsync(tenantId, productId, 20));
         Assert.Contains("Insufficient inventory", ex.Message);
 
-        var exQty = await Assert.ThrowsAsync<ArgumentException>(() => service.ReserveAsync(productId, 0));
+        var exQty = await Assert.ThrowsAsync<ArgumentException>(() => service.ReserveAsync(tenantId, productId, 0));
         Assert.Contains("Quantity must be greater than 0", exQty.Message);
     }
 

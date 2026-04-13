@@ -137,7 +137,7 @@ public class RewardOrderService
             .ToList();
 
         var productIds = items.Select(i => i.RewardProductId).Distinct().ToList();
-        var products = await _catalog.GetByIdsAsync(productIds, ct);
+        var products = await _catalog.GetByIdsAsync(request.TenantId, productIds, ct);
 
         if (products.Count != productIds.Count)
             throw new ArgumentException("One or more reward products not found.");
@@ -148,7 +148,7 @@ public class RewardOrderService
         {
             foreach (var line in items)
             {
-                await _inventory.ReserveAsync(line.RewardProductId, line.Quantity, ct);
+                await _inventory.ReserveAsync(request.TenantId, line.RewardProductId, line.Quantity, ct);
                 reserved.Add(line);
             }
 
@@ -199,7 +199,7 @@ public class RewardOrderService
                 await _db.SaveChangesAsync(ct);
 
                 releaseAttempted = true;
-                await ReleaseReservedAsync(reserved, ct, ex);
+                await ReleaseReservedAsync(request.TenantId, reserved, ct, ex);
                 throw;
             }
         }
@@ -208,7 +208,7 @@ public class RewardOrderService
             if (!releaseAttempted)
             {
                 releaseAttempted = true;
-                await ReleaseReservedAsync(reserved, ct, ex);
+                await ReleaseReservedAsync(request.TenantId, reserved, ct, ex);
             }
             throw;
         }
@@ -223,14 +223,14 @@ public class RewardOrderService
         if (request.Items.Any(i => i.Quantity <= 0)) throw new ArgumentException("Quantity must be greater than 0.");
     }
 
-    private async Task ReleaseReservedAsync(List<RewardOrderLineRequest> reserved, CancellationToken ct, Exception? original)
+    private async Task ReleaseReservedAsync(Guid tenantId, List<RewardOrderLineRequest> reserved, CancellationToken ct, Exception? original)
     {
         if (reserved.Count == 0) return;
         try
         {
             foreach (var line in reserved)
             {
-                await _inventory.ReleaseAsync(line.RewardProductId, line.Quantity, ct);
+                await _inventory.ReleaseAsync(tenantId, line.RewardProductId, line.Quantity, ct);
             }
         }
         catch (Exception releaseEx)

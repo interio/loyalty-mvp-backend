@@ -34,7 +34,14 @@ public static class TestDbContextFactory
             "CREATE TABLE IF NOT EXISTS \"Tenants\" (" +
             "\"Id\" uuid PRIMARY KEY, " +
             "\"Name\" character varying(200) NOT NULL, " +
+            "\"Email\" character varying(320) NULL, " +
+            "\"Phone\" character varying(50) NULL, " +
+            "\"Address\" character varying(500) NULL, " +
             "\"CreatedAt\" timestamp with time zone NOT NULL)");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Tenants\" ADD COLUMN IF NOT EXISTS \"Email\" character varying(320) NULL");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Tenants\" ADD COLUMN IF NOT EXISTS \"Phone\" character varying(50) NULL");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Tenants\" ADD COLUMN IF NOT EXISTS \"Address\" character varying(500) NULL");
+
         await db.Database.ExecuteSqlRawAsync(
             "CREATE TABLE IF NOT EXISTS \"Customers\" (" +
             "\"Id\" uuid PRIMARY KEY, " +
@@ -42,7 +49,10 @@ public static class TestDbContextFactory
             "\"Name\" character varying(300) NOT NULL, " +
             "\"ContactEmail\" character varying(320), " +
             "\"ExternalId\" character varying(200), " +
+            "\"Tier\" character varying(20) NOT NULL DEFAULT 'bronze', " +
             "\"CreatedAt\" timestamp with time zone NOT NULL)");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Customers\" ADD COLUMN IF NOT EXISTS \"Tier\" character varying(20) NOT NULL DEFAULT 'bronze'");
+
         await db.Database.ExecuteSqlRawAsync(
             "CREATE TABLE IF NOT EXISTS \"Users\" (" +
             "\"Id\" uuid PRIMARY KEY, " +
@@ -98,7 +108,13 @@ public static class TestDbContextFactory
             "CREATE TABLE IF NOT EXISTS \"Tenants\" (" +
             "\"Id\" uuid PRIMARY KEY, " +
             "\"Name\" character varying(200) NOT NULL, " +
+            "\"Email\" character varying(320) NULL, " +
+            "\"Phone\" character varying(50) NULL, " +
+            "\"Address\" character varying(500) NULL, " +
             "\"CreatedAt\" timestamp with time zone NOT NULL)");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Tenants\" ADD COLUMN IF NOT EXISTS \"Email\" character varying(320) NULL");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Tenants\" ADD COLUMN IF NOT EXISTS \"Phone\" character varying(50) NULL");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Tenants\" ADD COLUMN IF NOT EXISTS \"Address\" character varying(500) NULL");
 
         await db.Database.ExecuteSqlRawAsync(
             "CREATE TABLE IF NOT EXISTS \"Distributors\" (" +
@@ -120,12 +136,13 @@ public static class TestDbContextFactory
             "\"Sku\" character varying(200) NOT NULL, " +
             "\"Gtin\" character varying(50) NULL, " +
             "\"Name\" character varying(400) NOT NULL, " +
-            "\"Cost\" numeric(18,2) NOT NULL, " +
+            "\"Cost\" numeric(18,2) NULL, " +
             "\"Attributes\" text NOT NULL, " +
             "\"CreatedAt\" timestamp with time zone NOT NULL, " +
             "\"UpdatedAt\" timestamp with time zone NOT NULL, " +
             "CONSTRAINT \"FK_Products_Distributors_TenantId_DistributorId\" " +
             "FOREIGN KEY (\"TenantId\", \"DistributorId\") REFERENCES \"Distributors\" (\"TenantId\", \"Id\"))");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Products\" ALTER COLUMN \"Cost\" DROP NOT NULL");
         await db.Database.ExecuteSqlRawAsync(
             "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_Products_TenantId_DistributorId_Sku\" " +
             "ON \"Products\" (\"TenantId\", \"DistributorId\", \"Sku\") WHERE \"Gtin\" IS NULL");

@@ -101,14 +101,25 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
         await _db.SaveChangesAsync(ct);
     }
 
-    public Task<List<RewardProduct>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default) =>
-        _db.RewardProducts
-           .Where(p => ids.Contains(p.Id))
-           .ToListAsync(ct);
-
-    public async Task ReserveAsync(Guid rewardProductId, int quantity, CancellationToken ct = default)
+    public Task<List<RewardProduct>> GetByIdsAsync(Guid tenantId, IEnumerable<Guid> ids, CancellationToken ct = default)
     {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
+
+        var idList = ids.Distinct().ToList();
+        return _db.RewardProducts
+           .Where(p => p.TenantId == tenantId && idList.Contains(p.Id))
+           .ToListAsync(ct);
+    }
+
+    public async Task ReserveAsync(Guid tenantId, Guid rewardProductId, int quantity, CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
         if (quantity <= 0) throw new ArgumentException("Quantity must be greater than 0.");
+
+        var productExistsForTenant = await _db.RewardProducts
+            .AnyAsync(p => p.Id == rewardProductId && p.TenantId == tenantId, ct);
+        if (!productExistsForTenant)
+            throw new InvalidOperationException("Reward product not found for tenant.");
 
         var rows = await _db.RewardInventories
             .Where(i => i.RewardProductId == rewardProductId && i.AvailableQuantity >= quantity)
@@ -120,9 +131,15 @@ public class RewardCatalogService : IRewardCatalogLookup, IRewardInventoryServic
             throw new InvalidOperationException("Insufficient inventory.");
     }
 
-    public async Task ReleaseAsync(Guid rewardProductId, int quantity, CancellationToken ct = default)
+    public async Task ReleaseAsync(Guid tenantId, Guid rewardProductId, int quantity, CancellationToken ct = default)
     {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
         if (quantity <= 0) return;
+
+        var productExistsForTenant = await _db.RewardProducts
+            .AnyAsync(p => p.Id == rewardProductId && p.TenantId == tenantId, ct);
+        if (!productExistsForTenant)
+            throw new InvalidOperationException("Reward product not found for tenant.");
 
         await _db.RewardInventories
             .Where(i => i.RewardProductId == rewardProductId)

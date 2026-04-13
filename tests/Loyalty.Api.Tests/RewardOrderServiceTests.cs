@@ -370,13 +370,14 @@ public class RewardOrderServiceTests
 
         public FakeCatalogLookup(List<Guid> ids) => _ids = ids;
 
-        public Task<List<RewardProduct>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default)
+        public Task<List<RewardProduct>> GetByIdsAsync(Guid tenantId, IEnumerable<Guid> ids, CancellationToken ct = default)
         {
             var products = _ids
                 .Where(id => ids.Contains(id))
                 .Select(id => new RewardProduct
                 {
                     Id = id,
+                    TenantId = tenantId,
                     RewardVendor = "VendorA",
                     Sku = "SKU",
                     Name = "Gift",
@@ -388,8 +389,8 @@ public class RewardOrderServiceTests
 
     private sealed class FakeInventoryService : IRewardInventoryService
     {
-        public Task ReserveAsync(Guid rewardProductId, int quantity, CancellationToken ct = default) => Task.CompletedTask;
-        public Task ReleaseAsync(Guid rewardProductId, int quantity, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReserveAsync(Guid tenantId, Guid rewardProductId, int quantity, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReleaseAsync(Guid tenantId, Guid rewardProductId, int quantity, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class FakeCustomerLookup : ICustomerLookup
