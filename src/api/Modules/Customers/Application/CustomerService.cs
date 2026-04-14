@@ -22,6 +22,21 @@ public record CreateCustomerCommand(
     DateTimeOffset? OnboardDate = null,
     int? Status = null);
 
+/// <summary>Command for updating an existing customer/outlet profile.</summary>
+public record UpdateCustomerCommand(
+    Guid CustomerId,
+    Guid TenantId,
+    string Name,
+    string? ContactEmail,
+    string? ExternalId,
+    string? Tier = null,
+    CustomerAddress? Address = null,
+    string? PhoneNumber = null,
+    string? Type = null,
+    string? BusinessSegment = null,
+    DateTimeOffset? OnboardDate = null,
+    int? Status = null);
+
 /// <summary>Customer module application contract.</summary>
 public interface ICustomerService
 {
@@ -39,6 +54,9 @@ public interface ICustomerService
 
     /// <summary>Create a customer and seed its points account.</summary>
     Task<Customer> CreateAsync(CreateCustomerCommand command, CancellationToken ct = default);
+
+    /// <summary>Update an existing customer profile in tenant scope.</summary>
+    Task<Customer> UpdateAsync(UpdateCustomerCommand command, CancellationToken ct = default);
 
     /// <summary>Updates loyalty tier for an existing customer.</summary>
     Task<Customer> UpdateTierAsync(Guid customerId, Guid tenantId, string tier, CancellationToken ct = default);
@@ -153,11 +171,11 @@ public interface ICustomerService
     {
         var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == command.TenantId, ct);
         if (!tenantExists)
-            throw new Exception("Tenant not found.");
+            throw new System.Collections.Generic.KeyNotFoundException("Tenant not found.");
 
         var name = command.Name?.Trim();
         if (string.IsNullOrWhiteSpace(name))
-            throw new Exception("Customer name is required.");
+            throw new ArgumentException("Customer name is required.");
 
         var contactEmail = TrimOrNull(command.ContactEmail);
         var externalId = TrimOrNull(command.ExternalId);
@@ -169,11 +187,11 @@ public interface ICustomerService
 
         var tier = CustomerTierCatalog.NormalizeOrDefault(command.Tier);
         if (!CustomerTierCatalog.IsSupported(tier))
-            throw new Exception("Customer tier must be one of: bronze, silver, gold, platinum.");
+            throw new ArgumentException("Customer tier must be one of: bronze, silver, gold, platinum.");
 
         var status = command.Status ?? CustomerStatusCatalog.Active;
         if (!CustomerStatusCatalog.IsSupported(status))
-            throw new Exception("Customer status must be one of: 0 (inactive), 1 (active), 2 (suspended).");
+            throw new ArgumentException("Customer status must be one of: 0 (inactive), 1 (active), 2 (suspended).");
 
         var customer = new Customer
         {
@@ -222,6 +240,55 @@ public interface ICustomerService
         });
         await _db.SaveChangesAsync(ct);
         await _ledgerDb.SaveChangesAsync(ct);
+        return customer;
+    }
+
+    /// <inheritdoc />
+    public async Task<Customer> UpdateAsync(UpdateCustomerCommand command, CancellationToken ct = default)
+    {
+        if (command.CustomerId == Guid.Empty) throw new ArgumentException("CustomerId is required.");
+        if (command.TenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
+
+        var customer = await _db.Customers.FirstOrDefaultAsync(
+            c => c.Id == command.CustomerId && c.TenantId == command.TenantId,
+            ct);
+
+        if (customer is null)
+            throw new System.Collections.Generic.KeyNotFoundException("Customer not found for tenant.");
+
+        var name = command.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Customer name is required.");
+
+        var contactEmail = TrimOrNull(command.ContactEmail);
+        var externalId = TrimOrNull(command.ExternalId);
+        var phoneNumber = TrimOrNull(command.PhoneNumber);
+        var customerType = TrimOrNull(command.Type);
+        var businessSegment = TrimOrNull(command.BusinessSegment);
+        var address = NormalizeAddress(command.Address);
+
+        var tier = command.Tier is null
+            ? customer.Tier
+            : CustomerTierCatalog.NormalizeOrDefault(command.Tier);
+        if (!CustomerTierCatalog.IsSupported(tier))
+            throw new ArgumentException("Customer tier must be one of: bronze, silver, gold, platinum.");
+
+        var status = command.Status ?? customer.Status;
+        if (!CustomerStatusCatalog.IsSupported(status))
+            throw new ArgumentException("Customer status must be one of: 0 (inactive), 1 (active), 2 (suspended).");
+
+        customer.Name = name;
+        customer.ContactEmail = contactEmail;
+        customer.ExternalId = externalId;
+        customer.Tier = tier;
+        customer.Address = address;
+        customer.PhoneNumber = phoneNumber;
+        customer.Type = customerType;
+        customer.BusinessSegment = businessSegment;
+        customer.OnboardDate = command.OnboardDate ?? customer.OnboardDate;
+        customer.Status = status;
+
+        await _db.SaveChangesAsync(ct);
         return customer;
     }
 

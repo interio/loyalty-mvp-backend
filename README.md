@@ -34,7 +34,7 @@ docker run --rm \
 
 ## Module structure
 - `src/api/Modules/Tenants` — tenant domain, GraphQL resolvers, TenantsDbContext.
-- `src/api/Modules/Customers` — customers/users domain, GraphQL resolvers, CustomersDbContext.
+- `src/api/Modules/Customers` — customers/users domain, REST + GraphQL endpoints, CustomersDbContext.
 - `src/api/Modules/LoyaltyLedger` — points accounts and transactions, GraphQL resolvers, LedgerDbContext.
 - `src/api/Modules/RulesEngine` — inbound invoices + rules; REST controller; IntegrationDbContext.
 - `src/api/Modules/Products` — product catalog for loyalty rules; REST + GraphQL; ProductsDbContext.
@@ -106,9 +106,53 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
   - Returns `202 Accepted` with a `correlationId` (processing is async via background worker).
 - REST (RulesEngine rules): `POST /api/v1/rules/points/upsert` (batch insert of versioned rules), `POST /api/v1/rules/points/complex`, `PUT /api/v1/rules/points/{id}` (tenantId + active only), `DELETE /api/v1/rules/points/{id}?tenantId=...`
   - Existing rules are immutable; create a new rule version instead of editing an existing one.
+- REST (Customers, ERP-facing):
+  - `POST /api/v1/customers` (create customer/outlet and points account)
+  - `PUT /api/v1/customers/{customerId}` (update existing customer profile in tenant scope)
+  - Request fields support: `name`, `contactEmail`, `externalId`, `tier`, `address { address, countryCode, postalCode, region }`, `phoneNumber`, `type`, `businessSegment`, `onboardDate`, `status`
+  - Status mapping: `0 = inactive`, `1 = active`, `2 = suspended`
 - REST (Products): `POST /api/v1/products/upsert` (`tenantId` and `distributorId` are required per product item; when authenticated, payload tenant must match tenant claim)
 - REST (RewardCatalog): `POST /api/v1/rewards/catalog/upsert`, `POST /api/v1/rewards/catalog/upload` (CSV)
 - RewardOrders are available via GraphQL mutations/queries (see `RewardOrderMutations` and `RewardOrderQueries`).
+
+### ERP customer API examples
+Create customer:
+```
+curl -X POST http://localhost:8080/api/v1/customers \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "0eb3173e-df9f-4604-a706-21cb97ba3530",
+    "name": "Green Bar & Grill",
+    "contactEmail": "contact@greenbar.test",
+    "externalId": "CUST-HEI-001",
+    "tier": "bronze",
+    "status": 1
+  }'
+```
+
+Update customer:
+```
+curl -X PUT http://localhost:8080/api/v1/customers/REPLACE_WITH_CUSTOMER_ID \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "0eb3173e-df9f-4604-a706-21cb97ba3530",
+    "name": "Green Bar & Grill",
+    "contactEmail": "ops@greenbar.test",
+    "externalId": "CUST-HEI-001",
+    "tier": "silver",
+    "address": {
+      "address": "Main Street 10",
+      "countryCode": "PL",
+      "postalCode": "00-001",
+      "region": "Mazowieckie"
+    },
+    "phoneNumber": "+48 555 123 456",
+    "type": "bar",
+    "businessSegment": "on-trade",
+    "onboardDate": "2026-04-01T00:00:00Z",
+    "status": 1
+  }'
+```
 
 ## Tests
 ```
