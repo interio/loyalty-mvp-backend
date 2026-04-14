@@ -313,4 +313,99 @@ public class DatabaseInvoicePointsRuleProviderTests
 
         Assert.Equal(30, points);
     }
+
+    [Fact]
+    public async Task GetRulesAsync_ComplexPerCurrency_AwardsPointsFromMatchingLineAmounts()
+    {
+        await using var db = CreateContext();
+        var tenantId = Guid.NewGuid();
+
+        var rule = new PointsRule
+        {
+            TenantId = tenantId,
+            Name = "Complex per currency",
+            RuleType = "complex_rule",
+            Active = true,
+            Priority = 0,
+            RewardPoints = 0,
+            EffectiveFrom = DateTimeOffset.UtcNow.AddMinutes(-1)
+        };
+
+        var rootGroup = new RuleConditionGroup
+        {
+            Id = Guid.NewGuid(),
+            RuleId = rule.Id,
+            Logic = "AND",
+            SortOrder = 0,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        rule.RootGroupId = rootGroup.Id;
+
+        db.PointsRules.Add(rule);
+        db.RuleConditionGroups.Add(rootGroup);
+        db.RuleConditions.AddRange(
+            new RuleCondition
+            {
+                GroupId = rootGroup.Id,
+                EntityCode = "product",
+                AttributeCode = "sku",
+                Operator = "eq",
+                ValueJson = JsonDocument.Parse("\"SKU-1\""),
+                SortOrder = 0,
+                CreatedAt = DateTimeOffset.UtcNow
+            },
+            new RuleCondition
+            {
+                GroupId = rootGroup.Id,
+                EntityCode = "rule",
+                AttributeCode = "awardMode",
+                Operator = "eq",
+                ValueJson = JsonDocument.Parse("\"per_currency\""),
+                SortOrder = 1,
+                CreatedAt = DateTimeOffset.UtcNow
+            },
+            new RuleCondition
+            {
+                GroupId = rootGroup.Id,
+                EntityCode = "rule",
+                AttributeCode = "pointsPerCurrencyPoints",
+                Operator = "eq",
+                ValueJson = JsonDocument.Parse("2"),
+                SortOrder = 2,
+                CreatedAt = DateTimeOffset.UtcNow
+            },
+            new RuleCondition
+            {
+                GroupId = rootGroup.Id,
+                EntityCode = "rule",
+                AttributeCode = "pointsPerCurrencyAmount",
+                Operator = "eq",
+                ValueJson = JsonDocument.Parse("25"),
+                SortOrder = 3,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+        await db.SaveChangesAsync();
+
+        var provider = new DatabaseInvoicePointsRuleProvider(db, new NullLogger<DatabaseInvoicePointsRuleProvider>());
+        var rules = await provider.GetRulesAsync(tenantId);
+
+        Assert.Single(rules);
+
+        var points = rules[0].CalculatePoints(new InvoiceUpsertRequest
+        {
+            TenantId = tenantId,
+            InvoiceId = "INV-1",
+            CustomerExternalId = "CUST-1",
+            OccurredAt = DateTimeOffset.UtcNow,
+            Lines = new List<InvoiceLineRequest>
+            {
+                new() { Sku = "SKU-1", Quantity = 1, NetAmount = 140m },
+                new() { Sku = "SKU-2", Quantity = 1, NetAmount = 500m }
+            }
+        });
+
+        Assert.Equal(10, points);
+    }
 }

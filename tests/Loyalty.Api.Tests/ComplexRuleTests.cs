@@ -308,6 +308,67 @@ public class ComplexRuleTests
         Assert.Equal(rewardPoints, rule.CalculatePoints(matchingInvoice));
     }
 
+    [Fact]
+    public void CalculatePoints_PerCurrency_UsesInvoiceAmount_WhenOnlyInvoiceScopedConditionsExist()
+    {
+        var ruleId = Guid.NewGuid();
+        var rootGroup = CreateGroup(ruleId, null, "AND", 0);
+
+        var rule = new ComplexRule(
+            ruleId,
+            rootGroup.Id,
+            ComplexRuleAwardConfig.CreatePerCurrency(points: 1, amount: 10m),
+            new[] { rootGroup },
+            new[]
+            {
+                CreateCondition(rootGroup.Id, "invoice", "currency", "eq", "\"EUR\"", 0)
+            });
+
+        var invoice = CreateInvoice(
+            currency: "EUR",
+            occurredAt: DateTimeOffset.UtcNow,
+            lines: new[]
+            {
+                new InvoiceLineRequest { Sku = "SKU-1", Quantity = 1, NetAmount = 85m },
+                new InvoiceLineRequest { Sku = "SKU-2", Quantity = 1, NetAmount = 24m }
+            });
+
+        var points = rule.CalculatePoints(invoice);
+
+        Assert.Equal(10, points);
+    }
+
+    [Fact]
+    public void CalculatePoints_PerCurrency_UsesOnlyMatchingLineAmounts_WhenLineScopedConditionsExist()
+    {
+        var ruleId = Guid.NewGuid();
+        var rootGroup = CreateGroup(ruleId, null, "AND", 0);
+
+        var rule = new ComplexRule(
+            ruleId,
+            rootGroup.Id,
+            ComplexRuleAwardConfig.CreatePerCurrency(points: 2, amount: 25m),
+            new[] { rootGroup },
+            new[]
+            {
+                CreateCondition(rootGroup.Id, "product", "sku", "eq", "\"SKU-1\"", 0)
+            });
+
+        var invoice = CreateInvoice(
+            currency: "EUR",
+            occurredAt: DateTimeOffset.UtcNow,
+            lines: new[]
+            {
+                new InvoiceLineRequest { Sku = "SKU-1", Quantity = 1, NetAmount = 130m },
+                new InvoiceLineRequest { Sku = "SKU-2", Quantity = 1, NetAmount = 400m }
+            });
+
+        var points = rule.CalculatePoints(invoice);
+
+        // Only SKU-1 amount counts: floor(130 / 25) * 2 = 10.
+        Assert.Equal(10, points);
+    }
+
     private static InvoiceUpsertRequest CreateInvoice(
         string currency,
         DateTimeOffset occurredAt,

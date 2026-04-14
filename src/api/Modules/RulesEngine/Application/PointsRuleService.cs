@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Collections;
 using System.Linq;
+using Loyalty.Api.Modules.RulesEngine.Application.Rules;
 using Loyalty.Api.Modules.RulesEngine.Domain;
 using Loyalty.Api.Modules.RulesEngine.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -164,6 +165,7 @@ public class PointsRuleService
     public async Task<Guid> CreateComplexRuleAsync(ComplexRuleCreateRequest request, CancellationToken ct = default)
     {
         ValidateComplex(request);
+        var awardMode = NormalizeAndValidateComplexAwardMode(request.AwardMode);
         var createdBy = NormalizeCreatedBy(request.CreatedBy);
 
         using var tx = await _db.Database.BeginTransactionAsync(ct);
@@ -183,7 +185,7 @@ public class PointsRuleService
             // Temporary: createdBy is provided by UI until real server-side auth is in place.
             CreatedBy = createdBy,
             CreatedAt = DateTimeOffset.UtcNow,
-            RewardPoints = request.PointsToGrant
+            RewardPoints = awardMode == ComplexRuleAwardMode.Static ? request.PointsToGrant : 0
         };
 
         _db.PointsRules.Add(rule);
@@ -208,6 +210,7 @@ public class PointsRuleService
         var rootSortOrder = 0;
 
         AddConditionNodes(rule.Id, rootGroup.Id, request.RootGroup.Children, ref rootSortOrder);
+        AddComplexAwardMetadataConditions(rootGroup.Id, awardMode, request, ref rootSortOrder);
 
         await _db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -256,7 +259,7 @@ public class PointsRuleService
 
         var conditions = await _db.RuleConditions
             .AsNoTracking()
-            .Where(c => groupIds.Contains(c.GroupId))
+            .Where(c => groupIds.Contains(c.GroupId) && c.EntityCode != "rule")
             .ToListAsync(ct);
 
         var groupsByParent = groups
@@ -348,7 +351,7 @@ public class PointsRuleService
 
         var conditions = await _db.RuleConditions
             .AsNoTracking()
-            .Where(c => groupIds.Contains(c.GroupId))
+            .Where(c => groupIds.Contains(c.GroupId) && c.EntityCode != "rule")
             .ToListAsync(ct);
 
         return new RuleConditionTreeFlat
@@ -621,7 +624,16 @@ public class PointsRuleService
         if (req.TenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
         if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("name is required.");
         if (string.IsNullOrWhiteSpace(req.CreatedBy)) throw new ArgumentException("createdBy is required.");
-        if (req.PointsToGrant <= 0) throw new ArgumentException("pointsToGrant must be greater than 0.");
+        var awardMode = NormalizeAndValidateComplexAwardMode(req.AwardMode);
+        if (awardMode == ComplexRuleAwardMode.Static && req.PointsToGrant <= 0)
+            throw new ArgumentException("pointsToGrant must be greater than 0 for static award mode.");
+        if (awardMode == ComplexRuleAwardMode.PerCurrency)
+        {
+            if (req.PointsPerCurrencyPoints is null or <= 0)
+                throw new ArgumentException("pointsPerCurrencyPoints must be greater than 0 for per-currency award mode.");
+            if (req.PointsPerCurrencyAmount is null or <= 0)
+                throw new ArgumentException("pointsPerCurrencyAmount must be greater than 0 for per-currency award mode.");
+        }
         if (req.RootGroup is null) throw new ArgumentException("rootGroup is required.");
         if (req.RootGroup.Children is null || req.RootGroup.Children.Count == 0)
             throw new ArgumentException("At least one condition is required.");
@@ -687,6 +699,15 @@ public class PointsRuleService
             : normalized[..500];
     }
 
+    private static string NormalizeAndValidateComplexAwardMode(string? awardMode)
+    {
+        var normalized = ComplexRuleAwardMode.Normalize(awardMode);
+        if (normalized is ComplexRuleAwardMode.Static or ComplexRuleAwardMode.PerCurrency)
+            return normalized;
+
+        throw new ArgumentException($"Unsupported awardMode: {awardMode}");
+    }
+
     private void AddConditionNodes(
         Guid ruleId,
         Guid parentGroupId,
@@ -730,6 +751,43 @@ public class PointsRuleService
         }
     }
 
+    private void AddComplexAwardMetadataConditions(
+        Guid rootGroupId,
+        string awardMode,
+        ComplexRuleCreateRequest request,
+        ref int sortOrder)
+    {
+        if (awardMode != ComplexRuleAwardMode.PerCurrency)
+            return;
+
+        AddRuleMetadataCondition(rootGroupId, ComplexRuleAwardMetadata.AwardMode, ComplexRuleAwardMode.PerCurrency, ref sortOrder);
+        AddRuleMetadataCondition(
+            rootGroupId,
+            ComplexRuleAwardMetadata.PointsPerCurrencyPoints,
+            request.PointsPerCurrencyPoints!.Value,
+            ref sortOrder);
+        AddRuleMetadataCondition(
+            rootGroupId,
+            ComplexRuleAwardMetadata.PointsPerCurrencyAmount,
+            request.PointsPerCurrencyAmount!.Value,
+            ref sortOrder);
+    }
+
+    private void AddRuleMetadataCondition(Guid groupId, string attributeCode, object value, ref int sortOrder)
+    {
+        _db.RuleConditions.Add(new RuleCondition
+        {
+            Id = Guid.NewGuid(),
+            GroupId = groupId,
+            EntityCode = "rule",
+            AttributeCode = attributeCode,
+            Operator = "eq",
+            ValueJson = JsonSerializer.SerializeToDocument(value),
+            SortOrder = sortOrder++,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+    }
+
 }
 
 
@@ -767,7 +825,10 @@ public class ComplexRuleCreateRequest
     public int Priority { get; set; } = 0;
     public DateTimeOffset? EffectiveFrom { get; set; }
     public DateTimeOffset? EffectiveTo { get; set; }
+    public string? AwardMode { get; set; }
     public int PointsToGrant { get; set; }
+    public int? PointsPerCurrencyPoints { get; set; }
+    public decimal? PointsPerCurrencyAmount { get; set; }
     public RuleConditionGroupInput RootGroup { get; set; } = default!;
 }
 

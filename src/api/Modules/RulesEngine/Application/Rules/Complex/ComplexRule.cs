@@ -8,7 +8,7 @@ namespace Loyalty.Api.Modules.RulesEngine.Application.Rules;
 public class ComplexRule : IInvoicePointsRule, IInvoicePointsRuleWithProductAttributes
 {
     private readonly Guid _ruleId;
-    private readonly int _rewardPoints;
+    private readonly ComplexRuleAwardConfig _awardConfig;
     private readonly ComplexRuleEntityEvaluatorRegistry _entityEvaluators;
     private readonly ComplexRuleCompiledExpression _compiledExpression;
     private IReadOnlyDictionary<string, JsonObject> _productAttributesBySku =
@@ -21,9 +21,26 @@ public class ComplexRule : IInvoicePointsRule, IInvoicePointsRuleWithProductAttr
         IEnumerable<RuleConditionGroup> groups,
         IEnumerable<RuleCondition> conditions,
         IEnumerable<IComplexRuleEntityEvaluator>? entityEvaluators = null)
+        : this(
+            ruleId,
+            rootGroupId,
+            ComplexRuleAwardConfig.CreateStatic(rewardPoints),
+            groups,
+            conditions,
+            entityEvaluators)
+    {
+    }
+
+    internal ComplexRule(
+        Guid ruleId,
+        Guid rootGroupId,
+        ComplexRuleAwardConfig awardConfig,
+        IEnumerable<RuleConditionGroup> groups,
+        IEnumerable<RuleCondition> conditions,
+        IEnumerable<IComplexRuleEntityEvaluator>? entityEvaluators = null)
     {
         _ruleId = ruleId;
-        _rewardPoints = rewardPoints;
+        _awardConfig = awardConfig;
         _entityEvaluators = new ComplexRuleEntityEvaluatorRegistry(entityEvaluators);
         _compiledExpression = ComplexRuleCompiler.Compile(rootGroupId, groups, conditions, _entityEvaluators);
     }
@@ -32,11 +49,29 @@ public class ComplexRule : IInvoicePointsRule, IInvoicePointsRuleWithProductAttr
 
     public int CalculatePoints(InvoiceUpsertRequest invoice)
     {
-        if (_rewardPoints <= 0) return 0;
+        if (_awardConfig.IsStatic && _awardConfig.StaticPoints <= 0) return 0;
+        if (_awardConfig.IsPerCurrency &&
+            (_awardConfig.PointsPerCurrencyPoints <= 0 || _awardConfig.PointsPerCurrencyAmount <= 0))
+            return 0;
         if (!_compiledExpression.NodesByGroup.ContainsKey(_compiledExpression.RootGroupId)) return 0;
 
         var context = new ComplexRuleEvaluationContext(invoice, null, _productAttributesBySku);
-        return EvaluateGroup(_compiledExpression.RootGroupId, context) ? _rewardPoints : 0;
+        if (!EvaluateGroup(_compiledExpression.RootGroupId, context))
+            return 0;
+
+        if (_awardConfig.IsStatic)
+            return _awardConfig.StaticPoints;
+
+        var qualifyingAmount = ResolvePerCurrencyQualifyingAmount(context);
+        if (qualifyingAmount <= 0)
+            return 0;
+
+        var steps = decimal.Floor(qualifyingAmount / _awardConfig.PointsPerCurrencyAmount);
+        if (steps <= 0)
+            return 0;
+
+        var total = steps * _awardConfig.PointsPerCurrencyPoints;
+        return total >= int.MaxValue ? int.MaxValue : (int)total;
     }
 
     public void SetProductAttributes(IReadOnlyDictionary<string, JsonObject> attributesBySku)
@@ -114,5 +149,21 @@ public class ComplexRule : IInvoicePointsRule, IInvoicePointsRuleWithProductAttr
     {
         if (node.IsGroup) return _compiledExpression.GroupsWithLineScopedConditions.Contains(node.GroupId);
         return node.Condition != null && _entityEvaluators.IsLineScoped(node.Condition.EntityCode);
+    }
+
+    private decimal ResolvePerCurrencyQualifyingAmount(ComplexRuleEvaluationContext context)
+    {
+        var hasLineScopedConditions = _compiledExpression.GroupsWithLineScopedConditions.Contains(_compiledExpression.RootGroupId);
+        if (!hasLineScopedConditions)
+            return context.Invoice.Lines.Sum(line => line.NetAmount);
+
+        decimal total = 0;
+        foreach (var line in context.Invoice.Lines)
+        {
+            if (EvaluateGroup(_compiledExpression.RootGroupId, context.WithLine(line)))
+                total += line.NetAmount;
+        }
+
+        return total;
     }
 }

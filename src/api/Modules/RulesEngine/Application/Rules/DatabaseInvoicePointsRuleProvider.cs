@@ -155,15 +155,12 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                         throw new ArgumentException("Complex rule requires condition groups.");
                     if (!groups.Any(g => g.Id == rule.RootGroupId.Value))
                         throw new ArgumentException("Complex rule root group not found.");
-
-                    var rewardPoints = ResolveRewardPoints(rule, conditions);
-                    if (rewardPoints <= 0)
-                        throw new ArgumentException("Complex rule requires rewardPoints > 0.");
+                    var awardConfig = ResolveComplexAwardConfig(rule, conditions);
 
                     return new ComplexRule(
                         rule.Id,
                         rule.RootGroupId.Value,
-                        rewardPoints,
+                        awardConfig,
                         groups,
                         conditions,
                         _complexRuleEntityEvaluators);
@@ -289,6 +286,40 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
         }
 
         return 0;
+    }
+
+    private static ComplexRuleAwardConfig ResolveComplexAwardConfig(PointsRule rule, IReadOnlyList<RuleCondition> conditions)
+    {
+        var metadata = BuildConditionMap(conditions);
+        var mode = ComplexRuleAwardMode.Normalize(GetString(metadata, ComplexRuleAwardMetadata.AwardMode));
+
+        if (string.Equals(mode, ComplexRuleAwardMode.Static, StringComparison.OrdinalIgnoreCase))
+        {
+            var rewardPoints = ResolveRewardPoints(rule, conditions);
+            if (rewardPoints <= 0)
+                throw new ArgumentException("Complex rule requires rewardPoints > 0 for static mode.");
+
+            return ComplexRuleAwardConfig.CreateStatic(rewardPoints);
+        }
+
+        if (string.Equals(mode, ComplexRuleAwardMode.PerCurrency, StringComparison.OrdinalIgnoreCase))
+        {
+            var points = GetInt(metadata, ComplexRuleAwardMetadata.PointsPerCurrencyPoints);
+            var amount = GetDecimal(metadata, ComplexRuleAwardMetadata.PointsPerCurrencyAmount);
+            if (points <= 0 || amount <= 0)
+                throw new ArgumentException(
+                    "Complex rule per-currency mode requires pointsPerCurrencyPoints > 0 and pointsPerCurrencyAmount > 0.");
+
+            return ComplexRuleAwardConfig.CreatePerCurrency(points, amount);
+        }
+
+        throw new ArgumentException($"Unsupported complex award mode: {mode}");
+    }
+
+    private static int GetInt(IReadOnlyDictionary<string, string?> map, string name)
+    {
+        if (!map.TryGetValue(name, out var raw) || string.IsNullOrWhiteSpace(raw)) return 0;
+        return int.TryParse(raw, out var value) ? value : 0;
     }
 
     private static bool TryGetInt(JsonElement element, out int value)

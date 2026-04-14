@@ -219,4 +219,123 @@ public class PointsRuleServiceTests
         await Assert.ThrowsAsync<System.Collections.Generic.KeyNotFoundException>(() =>
             service.DeleteAsync(Guid.NewGuid(), Guid.NewGuid()));
     }
+
+    [Fact]
+    public async Task CreateComplexRuleAsync_StaticAward_PersistsRewardPoints()
+    {
+        await using var db = CreateContext();
+        var service = new PointsRuleService(db);
+        var tenantId = Guid.NewGuid();
+
+        var id = await service.CreateComplexRuleAsync(new ComplexRuleCreateRequest
+        {
+            TenantId = tenantId,
+            Name = "Complex static",
+            CreatedBy = "admin@example.com",
+            AwardMode = "static",
+            PointsToGrant = 25,
+            RootGroup = new RuleConditionGroupInput
+            {
+                Logic = "AND",
+                Children = new List<RuleConditionNodeInput>
+                {
+                    new()
+                    {
+                        Type = "condition",
+                        EntityCode = "invoice",
+                        AttributeCode = "currency",
+                        Operator = "eq",
+                        ValueJson = JsonDocument.Parse("\"EUR\"").RootElement.Clone()
+                    }
+                }
+            }
+        });
+
+        var rule = await db.PointsRules.FirstAsync(r => r.Id == id);
+        Assert.Equal(25, rule.RewardPoints);
+
+        var rootGroup = await db.RuleConditionGroups.FirstAsync(g => g.Id == rule.RootGroupId);
+        var metadataConditions = await db.RuleConditions
+            .Where(c => c.GroupId == rootGroup.Id && c.EntityCode == "rule")
+            .ToListAsync();
+        Assert.Empty(metadataConditions);
+    }
+
+    [Fact]
+    public async Task CreateComplexRuleAsync_PerCurrencyAward_PersistsMetadataConditions()
+    {
+        await using var db = CreateContext();
+        var service = new PointsRuleService(db);
+        var tenantId = Guid.NewGuid();
+
+        var id = await service.CreateComplexRuleAsync(new ComplexRuleCreateRequest
+        {
+            TenantId = tenantId,
+            Name = "Complex per currency",
+            CreatedBy = "admin@example.com",
+            AwardMode = "per_currency",
+            PointsToGrant = 0,
+            PointsPerCurrencyPoints = 2,
+            PointsPerCurrencyAmount = 25m,
+            RootGroup = new RuleConditionGroupInput
+            {
+                Logic = "AND",
+                Children = new List<RuleConditionNodeInput>
+                {
+                    new()
+                    {
+                        Type = "condition",
+                        EntityCode = "product",
+                        AttributeCode = "sku",
+                        Operator = "eq",
+                        ValueJson = JsonDocument.Parse("\"SKU-1\"").RootElement.Clone()
+                    }
+                }
+            }
+        });
+
+        var rule = await db.PointsRules.FirstAsync(r => r.Id == id);
+        Assert.Equal(0, rule.RewardPoints);
+
+        var rootGroup = await db.RuleConditionGroups.FirstAsync(g => g.Id == rule.RootGroupId);
+        var metadataByKey = await db.RuleConditions
+            .Where(c => c.GroupId == rootGroup.Id && c.EntityCode == "rule")
+            .ToDictionaryAsync(c => c.AttributeCode, c => c.ValueJson.RootElement.GetRawText());
+
+        Assert.Equal("\"per_currency\"", metadataByKey["awardMode"]);
+        Assert.Equal("2", metadataByKey["pointsPerCurrencyPoints"]);
+        Assert.Equal("25", metadataByKey["pointsPerCurrencyAmount"]);
+    }
+
+    [Fact]
+    public async Task CreateComplexRuleAsync_PerCurrencyAward_ValidatesRequiredFields()
+    {
+        await using var db = CreateContext();
+        var service = new PointsRuleService(db);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.CreateComplexRuleAsync(new ComplexRuleCreateRequest
+        {
+            TenantId = Guid.NewGuid(),
+            Name = "Invalid per currency",
+            CreatedBy = "admin@example.com",
+            AwardMode = "per_currency",
+            RootGroup = new RuleConditionGroupInput
+            {
+                Logic = "AND",
+                Children = new List<RuleConditionNodeInput>
+                {
+                    new()
+                    {
+                        Type = "condition",
+                        EntityCode = "invoice",
+                        AttributeCode = "currency",
+                        Operator = "eq",
+                        ValueJson = JsonDocument.Parse("\"EUR\"").RootElement.Clone()
+                    }
+                }
+            }
+        }));
+
+        Assert.Contains("pointsPerCurrencyPoints", ex.Message);
+    }
 }
