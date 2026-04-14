@@ -82,6 +82,7 @@ public class CustomersDbContext : DbContext
         });
 
         // Ignore ledger entities in this context.
+        modelBuilder.Ignore<TenantConfigSetting>();
         modelBuilder.Ignore<PointsAccount>();
         modelBuilder.Ignore<PointsTransaction>();
     }

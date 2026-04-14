@@ -33,6 +33,7 @@ public class ProductsDbContext : DbContext
         });
 
         // Ignore unrelated entities reachable via Tenant navigations.
+        modelBuilder.Ignore<TenantConfigSetting>();
         modelBuilder.Ignore<Customer>();
         modelBuilder.Ignore<User>();
         modelBuilder.Ignore<PointsAccount>();

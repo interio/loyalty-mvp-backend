@@ -92,7 +92,7 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
 ## Endpoints
 - GraphQL: `POST /graphql`
   - Resolvers are registered per module; use module inputs:
-    - Tenants: `createTenant`, `tenants`, `tenantsPage`
+    - Tenants: `createTenant`, `updateTenantConfig`, `setTenantConfigValue`, `tenants`, `tenantsPage`, `tenantConfigValue`
     - Customers/Users: `createCustomer`, `updateCustomerTier`, `createUser`, `customer`, `customersByTenant`, `customersByTenantPage` (optional `search`), `customersByTenantSearch`, `usersByCustomer`, `usersByTenant`, `usersByTenantPage` (optional `search`), `usersByTenantSearch`
     - Ledger: `redeemPoints`, `manualAdjustPoints`, `customerTransactions`
     - Products: `products` (required `tenantId`), `productsSearch` (required `tenantId` + `search`), `productsPage` (required `tenantId`, optional `search`), `distributorsByTenant`, `distributorsByTenantPage` (optional `search`), `distributorsByTenantSearch`, `createDistributor` - when authenticated, `tenantId` must match tenant claim
@@ -114,6 +114,33 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
 - REST (Products): `POST /api/v1/products/upsert` (`tenantId` and `distributorId` are required per product item; when authenticated, payload tenant must match tenant claim)
 - REST (RewardCatalog): `POST /api/v1/rewards/catalog/upsert`, `POST /api/v1/rewards/catalog/upload` (CSV)
 - RewardOrders are available via GraphQL mutations/queries (see `RewardOrderMutations` and `RewardOrderQueries`).
+
+### Tenant config section (separate table)
+- Tenant configuration values are stored in generic key-value table `TenantConfigSettings` with:
+  - `id`
+  - `tenantId` (nullable, null = shared default)
+  - `configName`
+  - `configValue`
+  - `createdAt`, `updatedAt`
+- Tenant-specific values override shared defaults.
+- Fallback behavior: when reading config for a tenant, backend first checks `tenantId=<tenant>`, then falls back to `tenantId=null`.
+- `createTenant` accepts optional `config { currency }` (stored as `configName=currency`).
+- `updateTenantConfig` is a convenience mutation for tenant currency.
+- `setTenantConfigValue` sets any generic key-value (tenant-specific or default).
+- `tenantConfigValue` resolves a value with tenant->default fallback.
+
+Example:
+```
+mutation SetDefaultCurrency($input: SetTenantConfigValueInput!) {
+  setTenantConfigValue(input: $input)
+}
+```
+
+```
+query TenantCurrency($tenantId: UUID!) {
+  tenantConfigValue(tenantId: $tenantId, configName: "currency")
+}
+```
 
 ### ERP customer API examples
 Create customer:

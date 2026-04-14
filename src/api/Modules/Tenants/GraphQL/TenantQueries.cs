@@ -26,6 +26,12 @@ public class TenantQueries
                 new PageInfo(result.TotalCount, result.Page, result.PageSize, result.TotalPages));
         });
 
+    /// <summary>
+    /// Resolves a config value for tenant with fallback to shared default.
+    /// </summary>
+    public Task<string?> TenantConfigValue(Guid tenantId, string configName, [Service] ITenantService tenants) =>
+        SafeExecute(() => tenants.GetConfigValueAsync(tenantId, configName));
+
     private static async Task<T> SafeExecute<T>(Func<Task<T>> action)
     {
         try
