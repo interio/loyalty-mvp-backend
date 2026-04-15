@@ -60,7 +60,8 @@ public class PointsRuleService
                 Id = r.Id,
                 RuleName = r.Name,
                 StartDate = r.EffectiveFrom,
-                EndDate = r.EffectiveTo
+                EndDate = r.EffectiveTo,
+                Active = r.Active
             })
             .ToListAsync(ct);
     }
@@ -906,4 +907,5 @@ public class CampaignRuleSummary
     public string RuleName { get; set; } = default!;
     public DateTimeOffset StartDate { get; set; }
     public DateTimeOffset? EndDate { get; set; }
+    public bool Active { get; set; }
 }
