@@ -111,7 +111,7 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
   - `PUT /api/v1/customers/{customerId}` (update existing customer profile in tenant scope)
   - Request fields support: `name`, `contactEmail`, `externalId`, `tier`, `address { address, countryCode, postalCode, region }`, `phoneNumber`, `type`, `businessSegment`, `onboardDate`, `status`
   - Status mapping: `0 = inactive`, `1 = active`, `2 = suspended`
-- REST (Products): `POST /api/v1/products/upsert` (`tenantId` and `distributorId` are required per product item; when authenticated, payload tenant must match tenant claim)
+- REST (Products): `POST /api/v1/products/upsert` (`tenantId` is required per product item; provide `distributorName` as preferred input, with optional legacy `distributorId`; when authenticated, payload tenant must match tenant claim)
 - REST (RewardCatalog): `POST /api/v1/rewards/catalog/upsert`, `POST /api/v1/rewards/catalog/upload` (CSV)
 - RewardOrders are available via GraphQL mutations/queries (see `RewardOrderMutations` and `RewardOrderQueries`).
 

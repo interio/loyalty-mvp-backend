@@ -6,7 +6,15 @@ namespace Loyalty.Api.Modules.Products.Application;
 public class ProductUpsertRequest
 {
     [Required] public Guid TenantId { get; set; }
-    [Required] public Guid DistributorId { get; set; }
+    /// <summary>
+    /// Distributor id (legacy input). Optional when <see cref="DistributorName"/> is provided.
+    /// </summary>
+    public Guid DistributorId { get; set; }
+
+    /// <summary>
+    /// Distributor name (preferred input for ERP/admin integrations). Tenant-scoped.
+    /// </summary>
+    public string? DistributorName { get; set; }
     [Required] public string Sku { get; set; } = default!;
     [Required] public string Name { get; set; } = default!;
     public string? Gtin { get; set; }

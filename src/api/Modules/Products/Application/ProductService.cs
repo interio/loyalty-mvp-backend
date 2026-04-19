@@ -81,9 +81,10 @@ public class ProductService
     public async Task UpsertAsync(IEnumerable<ProductUpsertRequest> requests, CancellationToken ct = default)
     {
         var distributorScopeCache = new Dictionary<(Guid TenantId, Guid DistributorId), bool>();
+        var distributorNameCache = new Dictionary<(Guid TenantId, string DistributorName), Guid?>();
         foreach (var req in requests)
         {
-            await UpsertSingleAsync(req, distributorScopeCache, ct);
+            await UpsertSingleAsync(req, distributorScopeCache, distributorNameCache, ct);
         }
 
         await _db.SaveChangesAsync(ct);
@@ -92,10 +93,11 @@ public class ProductService
     private async Task UpsertSingleAsync(
         ProductUpsertRequest req,
         IDictionary<(Guid TenantId, Guid DistributorId), bool> distributorScopeCache,
+        IDictionary<(Guid TenantId, string DistributorName), Guid?> distributorNameCache,
         CancellationToken ct)
     {
         Validate(req);
-        await EnsureDistributorExistsAsync(req.TenantId, req.DistributorId, distributorScopeCache, ct);
+        var distributorId = await ResolveDistributorIdAsync(req, distributorScopeCache, distributorNameCache, ct);
 
         var trimmedSku = req.Sku.Trim();
         var trimmedGtin = string.IsNullOrWhiteSpace(req.Gtin) ? null : req.Gtin.Trim();
@@ -103,7 +105,7 @@ public class ProductService
         var query = _db.Products
             .Where(p =>
                 p.TenantId == req.TenantId &&
-                p.DistributorId == req.DistributorId &&
+                p.DistributorId == distributorId &&
                 p.Sku == trimmedSku);
 
         if (!string.IsNullOrWhiteSpace(trimmedGtin))
@@ -116,7 +118,7 @@ public class ProductService
             product = new Product
             {
                 TenantId = req.TenantId,
-                DistributorId = req.DistributorId,
+                DistributorId = distributorId,
                 Sku = trimmedSku,
                 Gtin = trimmedGtin,
                 Name = req.Name.Trim(),
@@ -140,7 +142,11 @@ public class ProductService
     private static void Validate(ProductUpsertRequest req)
     {
         EnsureTenant(req.TenantId);
-        if (req.DistributorId == Guid.Empty) throw new ArgumentException("DistributorId is required.");
+        var hasDistributorId = req.DistributorId != Guid.Empty;
+        var hasDistributorName = !string.IsNullOrWhiteSpace(req.DistributorName);
+        if (!hasDistributorId && !hasDistributorName)
+            throw new ArgumentException("DistributorName or DistributorId is required.");
+
         if (string.IsNullOrWhiteSpace(req.Sku)) throw new ArgumentException("Sku is required.");
         if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("Name is required.");
         if (req.Cost.HasValue && req.Cost.Value < 0) throw new ArgumentException("Cost cannot be negative.");
@@ -149,6 +155,50 @@ public class ProductService
     private static void EnsureTenant(Guid tenantId)
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required.");
+    }
+
+    private async Task<Guid> ResolveDistributorIdAsync(
+        ProductUpsertRequest req,
+        IDictionary<(Guid TenantId, Guid DistributorId), bool> distributorScopeCache,
+        IDictionary<(Guid TenantId, string DistributorName), Guid?> distributorNameCache,
+        CancellationToken ct)
+    {
+        var hasDistributorName = !string.IsNullOrWhiteSpace(req.DistributorName);
+        if (!hasDistributorName)
+        {
+            await EnsureDistributorExistsAsync(req.TenantId, req.DistributorId, distributorScopeCache, ct);
+            return req.DistributorId;
+        }
+
+        var normalizedName = req.DistributorName!.Trim();
+        var cacheKey = (req.TenantId, normalizedName.ToUpperInvariant());
+        if (!distributorNameCache.TryGetValue(cacheKey, out var resolvedDistributorId))
+        {
+            var normalizedUpper = normalizedName.ToUpperInvariant();
+            var matches = await _db.Distributors
+                .AsNoTracking()
+                .Where(d => d.TenantId == req.TenantId && d.Name.ToUpper() == normalizedUpper)
+                .Select(d => d.Id)
+                .ToListAsync(ct);
+
+            resolvedDistributorId = matches.Count switch
+            {
+                0 => null,
+                1 => matches[0],
+                _ => throw new ArgumentException("Multiple distributors matched the provided distributorName for this tenant.")
+            };
+
+            distributorNameCache[cacheKey] = resolvedDistributorId;
+        }
+
+        if (!resolvedDistributorId.HasValue)
+            throw new ArgumentException("Distributor not found for this tenant.");
+
+        if (req.DistributorId != Guid.Empty && req.DistributorId != resolvedDistributorId.Value)
+            throw new ArgumentException("DistributorId does not match the provided distributorName for this tenant.");
+
+        await EnsureDistributorExistsAsync(req.TenantId, resolvedDistributorId.Value, distributorScopeCache, ct);
+        return resolvedDistributorId.Value;
     }
 
     private async Task EnsureDistributorExistsAsync(

@@ -126,4 +126,42 @@ public class ProductServiceTests
 
         Assert.Contains("Distributor not found for this tenant", ex.Message);
     }
+
+    [Fact]
+    public async Task Upsert_ResolvesDistributorByName()
+    {
+        var options = new DbContextOptionsBuilder<ProductsDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var db = new ProductsDbContext(options);
+        var service = new ProductService(db);
+
+        var tenantId = Guid.NewGuid();
+        var distributorId = Guid.NewGuid();
+        db.Distributors.Add(new Distributor
+        {
+            Id = distributorId,
+            TenantId = tenantId,
+            Name = "heineken-dist",
+            DisplayName = "Heineken Distributor"
+        });
+        await db.SaveChangesAsync();
+
+        await service.UpsertAsync(new[]
+        {
+            new ProductUpsertRequest
+            {
+                TenantId = tenantId,
+                DistributorName = "HEINEKEN-DIST",
+                Sku = "SKU-NAME",
+                Name = "Name Resolved Product",
+                Cost = 3m
+            }
+        });
+
+        var product = await db.Products.SingleAsync();
+        Assert.Equal(distributorId, product.DistributorId);
+        Assert.Equal("Name Resolved Product", product.Name);
+    }
 }

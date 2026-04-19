@@ -107,6 +107,44 @@ public class ProductServicePostgresTests
     }
 
     [Fact]
+    public async Task UpsertAsync_AllowsDistributorName()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var productsDb = TestDbContextFactory.CreateProducts(db.ConnectionString);
+        await TestDbContextFactory.EnsureProductsSchemaAsync(productsDb);
+
+        var service = new ProductService(productsDb);
+        var tenantId = Guid.NewGuid();
+        var distributorId = Guid.NewGuid();
+
+        productsDb.Tenants.Add(new Tenant { Id = tenantId, Name = "Tenant A" });
+        productsDb.Distributors.Add(new Distributor
+        {
+            Id = distributorId,
+            TenantId = tenantId,
+            Name = "dist-a",
+            DisplayName = "Distributor A"
+        });
+        await productsDb.SaveChangesAsync();
+
+        await service.UpsertAsync(new[]
+        {
+            new ProductUpsertRequest
+            {
+                TenantId = tenantId,
+                DistributorName = "DIST-A",
+                Sku = "SKU-NAME-1",
+                Name = "Name Based Product",
+                Cost = 8m
+            }
+        });
+
+        var saved = await productsDb.Products.SingleAsync();
+        Assert.Equal(distributorId, saved.DistributorId);
+        Assert.Equal("Name Based Product", saved.Name);
+    }
+
+    [Fact]
     public async Task UpsertAsync_ValidatesRequest()
     {
         var options = new DbContextOptionsBuilder<ProductsDbContext>()
@@ -136,13 +174,14 @@ public class ProductServicePostgresTests
                 {
                     TenantId = Guid.NewGuid(),
                     DistributorId = Guid.Empty,
+                    DistributorName = " ",
                     Sku = " ",
                     Name = " ",
                     Cost = -1m
                 }
             }));
 
-        Assert.Contains("DistributorId is required", ex.Message);
+        Assert.Contains("DistributorName or DistributorId is required", ex.Message);
 
         var exSku = await Assert.ThrowsAsync<ArgumentException>(() =>
             service.UpsertAsync(new[]
@@ -185,5 +224,43 @@ public class ProductServicePostgresTests
                 }
             }));
         Assert.Contains("Cost cannot be negative", exCost.Message);
+    }
+
+    [Fact]
+    public async Task UpsertAsync_ThrowsWhenDistributorIdAndNameMismatch()
+    {
+        await using var db = await PostgresTestDatabase.CreateAsync();
+        await using var productsDb = TestDbContextFactory.CreateProducts(db.ConnectionString);
+        await TestDbContextFactory.EnsureProductsSchemaAsync(productsDb);
+
+        var service = new ProductService(productsDb);
+        var tenantId = Guid.NewGuid();
+        var distributorId = Guid.NewGuid();
+
+        productsDb.Tenants.Add(new Tenant { Id = tenantId, Name = "Tenant A" });
+        productsDb.Distributors.Add(new Distributor
+        {
+            Id = distributorId,
+            TenantId = tenantId,
+            Name = "dist-a",
+            DisplayName = "Distributor A"
+        });
+        await productsDb.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UpsertAsync(new[]
+            {
+                new ProductUpsertRequest
+                {
+                    TenantId = tenantId,
+                    DistributorId = Guid.NewGuid(),
+                    DistributorName = "dist-a",
+                    Sku = "SKU-MISMATCH",
+                    Name = "Mismatch Product",
+                    Cost = 1m
+                }
+            }));
+
+        Assert.Contains("DistributorId does not match the provided distributorName for this tenant", ex.Message);
     }
 }
