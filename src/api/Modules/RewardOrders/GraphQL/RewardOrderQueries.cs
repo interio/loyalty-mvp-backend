@@ -40,6 +40,13 @@ public class RewardOrderQueries
             return new RewardOrderCursorConnection(result.Items, new CursorPageInfo(result.EndCursor, result.HasNextPage));
         });
 
+    public Task<List<RewardOrderSummary>> RewardOrdersByTenantRange(
+        Guid tenantId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        [Service] RewardOrderService orders) =>
+        SafeExecute(() => orders.ListSummaryByTenantRangeAsync(tenantId, from, to));
+
     public Task<RewardOrder?> RewardOrder(Guid tenantId, Guid id, [Service] RewardOrderService orders) =>
         SafeExecute(() => orders.GetByIdAsync(tenantId, id));
 

@@ -100,6 +100,29 @@ public class RewardOrderService
         return new CursorPageResult<RewardOrder>(items, endCursor, hasNext);
     }
 
+    public async Task<List<RewardOrderSummary>> ListSummaryByTenantRangeAsync(
+        Guid tenantId,
+        DateTimeOffset fromInclusive,
+        DateTimeOffset toExclusive,
+        CancellationToken ct = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
+        if (toExclusive <= fromInclusive) throw new ArgumentException("to must be greater than from.");
+
+        return await _db.RewardOrders
+            .AsNoTracking()
+            .Where(o => o.TenantId == tenantId && o.CreatedAt >= fromInclusive && o.CreatedAt < toExclusive)
+            .OrderBy(o => o.CreatedAt)
+            .Select(o => new RewardOrderSummary
+            {
+                Id = o.Id,
+                CreatedAt = o.CreatedAt,
+                TotalPoints = o.TotalPoints,
+                Status = o.Status
+            })
+            .ToListAsync(ct);
+    }
+
     public Task<RewardOrder?> GetByIdAsync(Guid tenantId, Guid orderId, CancellationToken ct = default) =>
         _db.RewardOrders
             .AsNoTracking()
@@ -244,4 +267,12 @@ public class RewardOrderService
             reserved.Clear();
         }
     }
+}
+
+public class RewardOrderSummary
+{
+    public Guid Id { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public int TotalPoints { get; set; }
+    public RewardOrderStatus Status { get; set; }
 }
