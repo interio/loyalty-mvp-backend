@@ -34,6 +34,8 @@ internal sealed class ComplexRuleProductEntityEvaluator : IComplexRuleEntityEval
         {
             "sku" => line.Sku,
             "quantity" => line.Quantity,
+            "quantityinorder" => line.Quantity,
+            "invoicequantityinorder" => line.Quantity,
             "netamount" => line.NetAmount,
             "distributorid" => line.DistributorId,
             _ => null

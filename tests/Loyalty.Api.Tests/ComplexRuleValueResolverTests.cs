@@ -40,6 +40,12 @@ public class ComplexRuleEntityEvaluatorTests
             CreateCondition("invoice", "totalAmount", "eq", "50"),
             context));
         Assert.True(evaluator.Evaluate(
+            CreateCondition("invoice", "qty", "eq", "3"),
+            context));
+        Assert.True(evaluator.Evaluate(
+            CreateCondition("invoice", "productQty", "eq", "3"),
+            context));
+        Assert.True(evaluator.Evaluate(
             CreateCondition("invoice", "linesCount", "eq", "2"),
             context));
         Assert.True(evaluator.Evaluate(
@@ -79,6 +85,9 @@ public class ComplexRuleEntityEvaluatorTests
             CreateCondition("product", "quantity", "eq", "3"),
             context));
         Assert.True(evaluator.Evaluate(
+            CreateCondition("product", "quantityInOrder", "eq", "3"),
+            context));
+        Assert.True(evaluator.Evaluate(
             CreateCondition("product", "netAmount", "eq", "99.5"),
             context));
         Assert.True(evaluator.Evaluate(
@@ -90,7 +99,7 @@ public class ComplexRuleEntityEvaluatorTests
     }
 
     [Fact]
-    public void CustomerEvaluator_ResolvesTierAndExternalId()
+    public void CustomerEvaluator_ResolvesTierExternalIdChannelAndRegion()
     {
         var evaluator = new ComplexRuleCustomerEntityEvaluator();
         var invoice = new InvoiceUpsertRequest
@@ -100,6 +109,8 @@ public class ComplexRuleEntityEvaluatorTests
             OccurredAt = DateTimeOffset.UtcNow,
             CustomerExternalId = "CUST-1",
             CustomerTier = "platinum",
+            CustomerChannel = "Modern On Trade (MONT)",
+            CustomerRegion = "GP",
             Lines = new List<InvoiceLineRequest> { new() { Sku = "SKU-1", Quantity = 1, NetAmount = 10 } }
         };
         var context = new ComplexRuleEvaluationContext(invoice, null, new Dictionary<string, JsonObject>());
@@ -109,6 +120,21 @@ public class ComplexRuleEntityEvaluatorTests
             context));
         Assert.True(evaluator.Evaluate(
             CreateCondition("customer", "externalId", "eq", "\"CUST-1\""),
+            context));
+        Assert.True(evaluator.Evaluate(
+            CreateCondition("customer", "channel", "eq", "\"mont\""),
+            context));
+        Assert.True(evaluator.Evaluate(
+            CreateCondition("customer", "channel", "eq", "\"%on trade%\""),
+            context));
+        Assert.True(evaluator.Evaluate(
+            CreateCondition("customer", "channel", "in", "[\"off\",\"mont\"]"),
+            context));
+        Assert.True(evaluator.Evaluate(
+            CreateCondition("customer", "region", "eq", "\"gp\""),
+            context));
+        Assert.False(evaluator.Evaluate(
+            CreateCondition("customer", "region", "eq", "\"wc\""),
             context));
     }
 

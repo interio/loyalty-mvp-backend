@@ -21,6 +21,9 @@ internal sealed class ComplexRuleInvoiceEntityEvaluator : IComplexRuleEntityEval
         return key switch
         {
             "currency" => invoice.Currency,
+            "qty" => invoice.Lines.Sum(l => l.Quantity),
+            "productqty" => invoice.Lines.Sum(l => l.Quantity),
+            "invoiceproductqty" => invoice.Lines.Sum(l => l.Quantity),
             "totalamount" => invoice.Lines.Sum(l => l.NetAmount),
             "totalnetamount" => invoice.Lines.Sum(l => l.NetAmount),
             "invoiceid" => invoice.InvoiceId,

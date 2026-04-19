@@ -110,6 +110,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserLookup>(sp => (UserService)sp.GetRequiredService<IUserService>());
 builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IComplexRuleEntityEvaluator, ComplexRuleInvoiceEntityEvaluator>();
+builder.Services.AddScoped<IComplexRuleEntityEvaluator, ComplexRuleCustomerEntityEvaluator>();
+builder.Services.AddScoped<IComplexRuleEntityEvaluator, ComplexRuleDistributorEntityEvaluator>();
 builder.Services.AddScoped<IComplexRuleEntityEvaluator, ComplexRuleProductEntityEvaluator>();
 builder.Services.AddScoped<IInvoicePointsRuleProvider, DatabaseInvoicePointsRuleProvider>();
 builder.Services.AddScoped<PointsPostingService>();

@@ -40,6 +40,16 @@ public class InvoiceUpsertRequest
     /// </summary>
     public string? CustomerTier { get; set; }
 
+    /// <summary>
+    /// Customer channel resolved by loyalty platform at processing time (not trusted from ERP input).
+    /// </summary>
+    public string? CustomerChannel { get; set; }
+
+    /// <summary>
+    /// Customer region resolved by loyalty platform at processing time (not trusted from ERP input).
+    /// </summary>
+    public string? CustomerRegion { get; set; }
+
     /// <summary>Invoice lines (cannot be empty).</summary>
     [Required]
     public List<InvoiceLineRequest> Lines { get; set; } = new();

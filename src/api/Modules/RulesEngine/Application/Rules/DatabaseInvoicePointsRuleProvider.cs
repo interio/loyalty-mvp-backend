@@ -27,8 +27,9 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
     {
         _db = db;
         _logger = logger;
-        _complexRuleEntityEvaluators = complexRuleEntityEvaluators?.ToList()
-            ?? ComplexRuleEntityEvaluatorDefaults.Create().ToList();
+        _complexRuleEntityEvaluators = ComplexRuleEntityEvaluatorDefaults
+            .MergeWithDefaults(complexRuleEntityEvaluators)
+            .ToList();
     }
 
     public async Task<IReadOnlyList<IInvoicePointsRule>> GetRulesAsync(Guid tenantId, CancellationToken ct = default)

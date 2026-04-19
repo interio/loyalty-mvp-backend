@@ -372,6 +372,81 @@ public class PointsPostingServiceTests
     }
 
     [Fact]
+    public async Task AwardInvoiceAsync_MapsCustomerBusinessSegmentAndRegion_ForComplexRuleConditions()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var (ledger, customers, integration, products) = CreateContexts(dbName);
+
+        var tenantId = Guid.NewGuid();
+        var customer = new Customer
+        {
+            TenantId = tenantId,
+            Name = "Blue Fox Bar",
+            ExternalId = "CUST-BLUE-001",
+            BusinessSegment = "Modern On Trade (MONT)",
+            Address = new CustomerAddress { Region = "GP" }
+        };
+        customers.Customers.Add(customer);
+        await customers.SaveChangesAsync();
+        ledger.PointsAccounts.Add(new PointsAccount { CustomerId = customer.Id, Balance = 0 });
+        await ledger.SaveChangesAsync();
+
+        var ruleId = Guid.NewGuid();
+        var rootGroup = new RuleConditionGroup
+        {
+            Id = Guid.NewGuid(),
+            RuleId = ruleId,
+            Logic = "AND",
+            SortOrder = 0,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        static RuleCondition C(Guid groupId, string entity, string attribute, string op, string json, int sort) =>
+            new()
+            {
+                Id = Guid.NewGuid(),
+                GroupId = groupId,
+                EntityCode = entity,
+                AttributeCode = attribute,
+                Operator = op,
+                ValueJson = JsonDocument.Parse(json),
+                SortOrder = sort,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+        var rule = new ComplexRule(
+            ruleId,
+            rootGroup.Id,
+            rewardPoints: 80,
+            groups: new[] { rootGroup },
+            conditions: new[]
+            {
+                C(rootGroup.Id, "product", "sku", "in", "[\"BEER-HEINEKEN-BTL-24PK\",\"BEER-HEINEKEN-CAN-6PK\"]", 0),
+                C(rootGroup.Id, "product", "quantity", "gte", "10", 1),
+                C(rootGroup.Id, "customer", "channel", "eq", "\"mont\"", 2),
+                C(rootGroup.Id, "customer", "region", "eq", "\"gp\"", 3)
+            });
+
+        var service = new PointsPostingService(ledger, customers, integration, products, new SingleRuleProvider(rule));
+        var response = await service.AwardInvoiceAsync(new InvoiceUpsertRequest
+        {
+            TenantId = tenantId,
+            InvoiceId = "INV-COND-1",
+            CustomerExternalId = "CUST-BLUE-001",
+            OccurredAt = DateTimeOffset.UtcNow,
+            Lines = new List<InvoiceLineRequest>
+            {
+                new() { Sku = "BEER-HEINEKEN-BTL-24PK", Quantity = 10, NetAmount = 3899.90m },
+                new() { Sku = "BEER-IPA-CAN-12PK", Quantity = 10, NetAmount = 3174.90m }
+            }
+        });
+
+        Assert.Equal(80, response.PointsAwarded);
+        var account = await ledger.PointsAccounts.FirstAsync(a => a.CustomerId == customer.Id);
+        Assert.Equal(80, account.Balance);
+    }
+
+    [Fact]
     public async Task ProcessPendingInvoicesAsync_IgnoresInvalidBatchSize()
     {
         var dbName = Guid.NewGuid().ToString();
