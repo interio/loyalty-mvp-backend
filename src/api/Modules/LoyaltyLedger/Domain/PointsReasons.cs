@@ -13,4 +13,7 @@ public static class PointsReasons
 
     /// <summary>Manual adjustment by operations.</summary>
     public const string ManualAdjustment = "manual_adjustment";
+
+    /// <summary>Welcome bonus awarded to a customer once.</summary>
+    public const string WelcomeBonus = "welcome_bonus";
 }

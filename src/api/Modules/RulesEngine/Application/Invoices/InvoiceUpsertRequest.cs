@@ -50,6 +50,26 @@ public class InvoiceUpsertRequest
     /// </summary>
     public string? CustomerRegion { get; set; }
 
+    /// <summary>
+    /// Customer type resolved by loyalty platform (for example bar/restaurant/shop).
+    /// </summary>
+    public string? CustomerType { get; set; }
+
+    /// <summary>
+    /// Customer business segment resolved by loyalty platform.
+    /// </summary>
+    public string? CustomerBusinessSegment { get; set; }
+
+    /// <summary>
+    /// Customer status code resolved by loyalty platform.
+    /// </summary>
+    public int? CustomerStatus { get; set; }
+
+    /// <summary>
+    /// Customer onboarding date resolved by loyalty platform.
+    /// </summary>
+    public DateTimeOffset? CustomerOnboardDate { get; set; }
+
     /// <summary>Invoice lines (cannot be empty).</summary>
     [Required]
     public List<InvoiceLineRequest> Lines { get; set; } = new();

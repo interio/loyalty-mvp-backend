@@ -104,6 +104,7 @@ builder.Services.AddDbContext<ProductsDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddDbContext<RewardCatalogDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddDbContext<RewardOrdersDbContext>(opt => opt.UseNpgsql(cs));
 builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddScoped<ICustomerWelcomeBonusService, CustomerWelcomeBonusService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ICustomerLookup>(sp => (CustomerService)sp.GetRequiredService<ICustomerService>());
 builder.Services.AddScoped<IUserService, UserService>();

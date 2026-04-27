@@ -93,7 +93,7 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
 - GraphQL: `POST /graphql`
   - Resolvers are registered per module; use module inputs:
     - Tenants: `createTenant`, `updateTenantConfig`, `setTenantConfigValue`, `tenants`, `tenantsPage`, `tenantConfigValue`
-    - Customers/Users: `createCustomer`, `updateCustomerTier`, `createUser`, `customer`, `customersByTenant`, `customersByTenantPage` (optional `search`), `customersByTenantSearch`, `usersByCustomer`, `usersByTenant`, `usersByTenantPage` (optional `search`), `usersByTenantSearch`
+    - Customers/Users: `createCustomer`, `updateCustomerTier`, `awardWelcomeBonus`, `createUser`, `customer`, `customersByTenant`, `customersByTenantPage` (optional `search`), `customersByTenantSearch`, `usersByCustomer`, `usersByTenant`, `usersByTenantPage` (optional `search`), `usersByTenantSearch`
     - Ledger: `redeemPoints`, `manualAdjustPoints`, `customerTransactions`
     - Products: `products` (required `tenantId`), `productsSearch` (required `tenantId` + `search`), `productsPage` (required `tenantId`, optional `search`), `distributorsByTenant`, `distributorsByTenantPage` (optional `search`), `distributorsByTenantSearch`, `createDistributor` - when authenticated, `tenantId` must match tenant claim
     - RewardCatalog: `rewardProducts`, `rewardProductsSearch`, `rewardProductsPage` (optional `search`), `rewardProduct`, `upsertRewardProduct`, `deleteRewardProduct`
@@ -106,10 +106,12 @@ ASPNETCORE_URLS=http://localhost:8080 dotnet run --project src/api/Loyalty.Api.c
   - Returns `202 Accepted` with a `correlationId` (processing is async via background worker).
 - REST (RulesEngine rules): `POST /api/v1/rules/points/upsert` (batch insert of versioned rules), `POST /api/v1/rules/points/complex`, `PUT /api/v1/rules/points/{id}` (tenantId + active only), `DELETE /api/v1/rules/points/{id}?tenantId=...`
   - Existing rules are immutable; create a new rule version instead of editing an existing one.
+  - `welcome_bonus` campaigns are created via `POST /api/v1/rules/points/complex` with `ruleType = "welcome_bonus"` and static `pointsToGrant`.
 - REST (Customers, ERP-facing):
   - `POST /api/v1/customers` (create customer/outlet and points account)
   - `PUT /api/v1/customers/{customerId}` (update existing customer profile in tenant scope)
   - Request fields support: `name`, `contactEmail`, `externalId`, `tier`, `address { address, countryCode, postalCode, region }`, `phoneNumber`, `type`, `businessSegment`, `onboardDate`, `status`
+  - Response additionally exposes: `welcomeBonusAwarded`, `welcomeBonusAwardedAt`
   - Status mapping: `0 = inactive`, `1 = active`, `2 = suspended`
 - REST (Products): `POST /api/v1/products/upsert` (`tenantId` is required per product item; provide `distributorName` as preferred input, with optional legacy `distributorId`; when authenticated, payload tenant must match tenant claim)
 - REST (RewardCatalog): `POST /api/v1/rewards/catalog/upsert`, `POST /api/v1/rewards/catalog/upload` (CSV)
@@ -179,6 +181,28 @@ curl -X PUT http://localhost:8080/api/v1/customers/REPLACE_WITH_CUSTOMER_ID \
     "onboardDate": "2026-04-01T00:00:00Z",
     "status": 1
   }'
+```
+
+### Welcome bonus notes
+- Rule type: `welcome_bonus`
+- Award is one-time per customer and controlled by customer fields:
+  - `welcomeBonusAwarded`
+  - `welcomeBonusAwardedAt`
+- Automatic flow:
+  - On customer creation, backend checks active `welcome_bonus` campaigns and customer eligibility.
+  - If matched and not awarded before, points are granted with reason `welcome_bonus`.
+- Manual admin flow (GraphQL):
+```
+mutation AwardWelcomeBonus($input: AwardWelcomeBonusInput!) {
+  awardWelcomeBonus(input: $input) {
+    customerId
+    awarded
+    pointsAwarded
+    currentBalance
+    outcome
+    awardedAt
+  }
+}
 ```
 
 ## Tests

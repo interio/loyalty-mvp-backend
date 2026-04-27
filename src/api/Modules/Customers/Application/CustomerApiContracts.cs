@@ -58,6 +58,8 @@ public class CustomerResponse
     public string? BusinessSegment { get; set; }
     public DateTimeOffset OnboardDate { get; set; }
     public int Status { get; set; }
+    public bool WelcomeBonusAwarded { get; set; }
+    public DateTimeOffset? WelcomeBonusAwardedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 

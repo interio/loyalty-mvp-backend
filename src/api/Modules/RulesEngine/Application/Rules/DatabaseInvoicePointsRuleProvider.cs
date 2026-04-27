@@ -166,6 +166,9 @@ public class DatabaseInvoicePointsRuleProvider : IInvoicePointsRuleProvider
                         conditions,
                         _complexRuleEntityEvaluators);
                 }
+            case "welcome_bonus":
+            case "welcomebonus":
+                return null;
             default:
                 throw new ArgumentException($"Unsupported rule type: {rule.RuleType}");
         }

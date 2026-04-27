@@ -26,6 +26,11 @@ internal sealed class ComplexRuleCustomerEntityEvaluator : IComplexRuleEntityEva
             "tier" or "customertier" => context.Invoice.CustomerTier,
             "externalid" => context.Invoice.CustomerExternalId,
             "region" or "customerregion" => context.Invoice.CustomerRegion,
+            "segment" or "businesssegment" or "customersegment" or "customerbusinesssegment" =>
+                context.Invoice.CustomerBusinessSegment ?? context.Invoice.CustomerChannel,
+            "type" or "customertype" => context.Invoice.CustomerType,
+            "status" or "customerstatus" => context.Invoice.CustomerStatus,
+            "onboarddate" or "customeronboarddate" => context.Invoice.CustomerOnboardDate,
             _ => null
         };
     }

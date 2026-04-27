@@ -36,6 +36,27 @@ public class CustomerMutations
     public Task<Customer> UpdateCustomerTier(UpdateCustomerTierInput input, [Service] ICustomerService customers) =>
         SafeExecute(() => customers.UpdateTierAsync(input.CustomerId, input.TenantId, input.Tier));
 
+    /// <summary>Awards welcome bonus once for an existing customer.</summary>
+    public Task<WelcomeBonusAwardPayload> AwardWelcomeBonus(
+        AwardWelcomeBonusInput input,
+        [Service] ICustomerService customers) =>
+        SafeExecute(async () =>
+        {
+            var result = await customers.AwardWelcomeBonusAsync(
+                input.CustomerId,
+                input.TenantId,
+                input.ActorEmail,
+                input.RequireOnboardDateReached);
+
+            return new WelcomeBonusAwardPayload(
+                result.CustomerId,
+                result.Awarded,
+                result.PointsAwarded,
+                result.CurrentBalance,
+                result.Outcome,
+                result.AwardedAt);
+        });
+
     /// <summary>Creates a user under a customer/outlet.</summary>
     public Task<User> CreateUser(CreateUserInput input, [Service] IUserService users) =>
         SafeExecute(() => users.CreateAsync(new CreateUserCommand(input.TenantId, input.CustomerId, input.Email, input.Role, input.ExternalId)));
@@ -90,6 +111,26 @@ public record CustomerAddressInput(string? Address, string? CountryCode, string?
 /// <param name="TenantId">Tenant identifier for scope validation.</param>
 /// <param name="Tier">Loyalty tier: bronze, silver, gold, platinum.</param>
 public record UpdateCustomerTierInput(Guid CustomerId, Guid TenantId, string Tier);
+
+/// <summary>Input for manually awarding customer welcome bonus.</summary>
+/// <param name="CustomerId">Customer identifier.</param>
+/// <param name="TenantId">Tenant identifier for scope validation.</param>
+/// <param name="ActorEmail">Optional actor email for transaction attribution.</param>
+/// <param name="RequireOnboardDateReached">When true, award only if onboard date is in the past/present.</param>
+public record AwardWelcomeBonusInput(
+    Guid CustomerId,
+    Guid TenantId,
+    string? ActorEmail,
+    bool RequireOnboardDateReached = false);
+
+/// <summary>Result payload for welcome bonus award operation.</summary>
+public record WelcomeBonusAwardPayload(
+    Guid CustomerId,
+    bool Awarded,
+    int PointsAwarded,
+    long CurrentBalance,
+    string Outcome,
+    DateTimeOffset? AwardedAt);
 
 /// <summary>Input for creating a user/employee.</summary>
 /// <param name="TenantId">Tenant identifier.</param>

@@ -142,6 +142,8 @@ public class CustomersController : ControllerBase
             BusinessSegment = customer.BusinessSegment,
             OnboardDate = customer.OnboardDate,
             Status = customer.Status,
+            WelcomeBonusAwarded = customer.WelcomeBonusAwarded,
+            WelcomeBonusAwardedAt = customer.WelcomeBonusAwardedAt,
             CreatedAt = customer.CreatedAt
         };
 }

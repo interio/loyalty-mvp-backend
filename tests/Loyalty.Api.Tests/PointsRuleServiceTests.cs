@@ -338,4 +338,63 @@ public class PointsRuleServiceTests
 
         Assert.Contains("pointsPerCurrencyPoints", ex.Message);
     }
+
+    [Fact]
+    public async Task CreateComplexRuleAsync_WelcomeBonus_AllowsEmptyConditions()
+    {
+        await using var db = CreateContext();
+        var service = new PointsRuleService(db);
+        var tenantId = Guid.NewGuid();
+
+        var id = await service.CreateComplexRuleAsync(new ComplexRuleCreateRequest
+        {
+            TenantId = tenantId,
+            Name = "Welcome bonus - all",
+            RuleType = "welcome_bonus",
+            CreatedBy = "admin@example.com",
+            PointsToGrant = 150,
+            RootGroup = new RuleConditionGroupInput
+            {
+                Logic = "AND",
+                Children = new List<RuleConditionNodeInput>()
+            }
+        });
+
+        var rule = await db.PointsRules.FirstAsync(r => r.Id == id);
+        Assert.Equal("welcome_bonus", rule.RuleType);
+        Assert.Equal(150, rule.RewardPoints);
+    }
+
+    [Fact]
+    public async Task CreateComplexRuleAsync_WelcomeBonus_RejectsNonCustomerConditions()
+    {
+        await using var db = CreateContext();
+        var service = new PointsRuleService(db);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.CreateComplexRuleAsync(new ComplexRuleCreateRequest
+        {
+            TenantId = Guid.NewGuid(),
+            Name = "Welcome bonus invalid",
+            RuleType = "welcome_bonus",
+            CreatedBy = "admin@example.com",
+            PointsToGrant = 100,
+            RootGroup = new RuleConditionGroupInput
+            {
+                Logic = "AND",
+                Children = new List<RuleConditionNodeInput>
+                {
+                    new()
+                    {
+                        Type = "condition",
+                        EntityCode = "invoice",
+                        AttributeCode = "currency",
+                        Operator = "eq",
+                        ValueJson = JsonDocument.Parse("\"EUR\"").RootElement.Clone()
+                    }
+                }
+            }
+        }));
+
+        Assert.Contains("only customer entity", ex.Message);
+    }
 }

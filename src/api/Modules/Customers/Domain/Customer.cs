@@ -56,6 +56,12 @@ public class Customer
     /// <summary>Operational status code: 0 inactive, 1 active, 2 suspended.</summary>
     public int Status { get; set; } = CustomerStatusCatalog.Active;
 
+    /// <summary>True when welcome bonus has already been awarded for this customer.</summary>
+    public bool WelcomeBonusAwarded { get; set; }
+
+    /// <summary>Timestamp when welcome bonus was awarded (UTC).</summary>
+    public DateTimeOffset? WelcomeBonusAwardedAt { get; set; }
+
     /// <summary>Creation timestamp in UTC.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

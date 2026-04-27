@@ -165,9 +165,18 @@ public class PointsRuleService
 
     public async Task<Guid> CreateComplexRuleAsync(ComplexRuleCreateRequest request, CancellationToken ct = default)
     {
-        ValidateComplex(request);
-        var awardMode = NormalizeAndValidateComplexAwardMode(request.AwardMode);
+        var normalizedRuleType = NormalizeAndValidateComplexRuleType(request.RuleType);
+        ValidateComplex(request, normalizedRuleType);
+        var isWelcomeBonusRule = normalizedRuleType == PointsRuleTypes.WelcomeBonus;
+        var awardMode = isWelcomeBonusRule
+            ? ComplexRuleAwardMode.Static
+            : NormalizeAndValidateComplexAwardMode(request.AwardMode);
         var createdBy = NormalizeCreatedBy(request.CreatedBy);
+        var rootInput = request.RootGroup ?? new RuleConditionGroupInput
+        {
+            Logic = "AND",
+            Children = new List<RuleConditionNodeInput>()
+        };
 
         using var tx = await _db.Database.BeginTransactionAsync(ct);
 
@@ -177,7 +186,7 @@ public class PointsRuleService
             TenantId = request.TenantId,
             Name = request.Name.Trim(),
             Description = NormalizeDescription(request.Description),
-            RuleType = string.IsNullOrWhiteSpace(request.RuleType) ? "complex_rule" : request.RuleType.Trim(),
+            RuleType = normalizedRuleType,
             // New rules must always be inactive first; activation is an explicit follow-up action.
             Active = false,
             Priority = request.Priority,
@@ -197,7 +206,7 @@ public class PointsRuleService
             Id = Guid.NewGuid(),
             RuleId = rule.Id,
             ParentGroupId = null,
-            Logic = request.RootGroup.Logic?.Trim().ToUpperInvariant() ?? "AND",
+            Logic = rootInput.Logic?.Trim().ToUpperInvariant() ?? "AND",
             SortOrder = 0,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -210,7 +219,7 @@ public class PointsRuleService
 
         var rootSortOrder = 0;
 
-        AddConditionNodes(rule.Id, rootGroup.Id, request.RootGroup.Children, ref rootSortOrder);
+        AddConditionNodes(rule.Id, rootGroup.Id, rootInput.Children, ref rootSortOrder);
         AddComplexAwardMetadataConditions(rootGroup.Id, awardMode, request, ref rootSortOrder);
 
         await _db.SaveChangesAsync(ct);
@@ -416,6 +425,9 @@ public class PointsRuleService
     private static void ValidateRuleSpecific(PointsRuleUpsertRequest req)
     {
         var type = req.RuleType.Trim().ToLowerInvariant();
+        if (type == PointsRuleTypes.WelcomeBonus)
+            throw new ArgumentException("welcome_bonus must be created via /api/v1/rules/points/complex endpoint.");
+
         if (type is not ("sku_quantity" or "sku_quantity_rule"))
             return;
 
@@ -620,32 +632,64 @@ public class PointsRuleService
             .Select(v => v!)
             .ToList();
 
-    private static void ValidateComplex(ComplexRuleCreateRequest req)
+    private static void ValidateComplex(ComplexRuleCreateRequest req, string normalizedRuleType)
     {
         if (req.TenantId == Guid.Empty) throw new ArgumentException("tenantId is required.");
         if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("name is required.");
         if (string.IsNullOrWhiteSpace(req.CreatedBy)) throw new ArgumentException("createdBy is required.");
-        var awardMode = NormalizeAndValidateComplexAwardMode(req.AwardMode);
-        if (awardMode == ComplexRuleAwardMode.Static && req.PointsToGrant <= 0)
-            throw new ArgumentException("pointsToGrant must be greater than 0 for static award mode.");
-        if (awardMode == ComplexRuleAwardMode.PerCurrency)
+        var isWelcomeBonusRule = normalizedRuleType == PointsRuleTypes.WelcomeBonus;
+
+        if (isWelcomeBonusRule)
         {
-            if (req.PointsPerCurrencyPoints is null or <= 0)
-                throw new ArgumentException("pointsPerCurrencyPoints must be greater than 0 for per-currency award mode.");
-            if (req.PointsPerCurrencyAmount is null or <= 0)
-                throw new ArgumentException("pointsPerCurrencyAmount must be greater than 0 for per-currency award mode.");
+            if (!string.IsNullOrWhiteSpace(req.AwardMode) &&
+                !string.Equals(
+                    ComplexRuleAwardMode.Normalize(req.AwardMode),
+                    ComplexRuleAwardMode.Static,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("welcome_bonus supports only static award mode.");
+            }
+
+            if (req.PointsToGrant <= 0)
+                throw new ArgumentException("pointsToGrant must be greater than 0 for welcome bonus.");
         }
-        if (req.RootGroup is null) throw new ArgumentException("rootGroup is required.");
-        if (req.RootGroup.Children is null || req.RootGroup.Children.Count == 0)
+        else
+        {
+            var awardMode = NormalizeAndValidateComplexAwardMode(req.AwardMode);
+            if (awardMode == ComplexRuleAwardMode.Static && req.PointsToGrant <= 0)
+                throw new ArgumentException("pointsToGrant must be greater than 0 for static award mode.");
+            if (awardMode == ComplexRuleAwardMode.PerCurrency)
+            {
+                if (req.PointsPerCurrencyPoints is null or <= 0)
+                    throw new ArgumentException("pointsPerCurrencyPoints must be greater than 0 for per-currency award mode.");
+                if (req.PointsPerCurrencyAmount is null or <= 0)
+                    throw new ArgumentException("pointsPerCurrencyAmount must be greater than 0 for per-currency award mode.");
+            }
+        }
+
+        var rootGroup = req.RootGroup;
+        if (rootGroup is null)
+        {
+            if (isWelcomeBonusRule)
+                return;
+            throw new ArgumentException("rootGroup is required.");
+        }
+
+        var children = rootGroup.Children ?? new List<RuleConditionNodeInput>();
+        if (!isWelcomeBonusRule && children.Count == 0)
             throw new ArgumentException("At least one condition is required.");
 
-        foreach (var child in req.RootGroup.Children)
+        var allowedEntityCodes = isWelcomeBonusRule
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "customer" }
+            : null;
+
+        foreach (var child in children)
         {
-            ValidateNode(child);
+            ValidateNode(child, allowedEntityCodes);
         }
     }
 
-    private static void ValidateNode(RuleConditionNodeInput node)
+    private static void ValidateNode(RuleConditionNodeInput node, HashSet<string>? allowedEntityCodes = null)
     {
         if (node is null) throw new ArgumentException("Condition node is required.");
         var type = node.Type?.Trim().ToLowerInvariant();
@@ -657,7 +701,7 @@ public class PointsRuleService
                 throw new ArgumentException("Group must contain at least one condition.");
             foreach (var child in node.Children)
             {
-                ValidateNode(child);
+                ValidateNode(child, allowedEntityCodes);
             }
             return;
         }
@@ -672,6 +716,8 @@ public class PointsRuleService
                 throw new ArgumentException("Operator is required for a condition.");
             if (node.ValueJson is null)
                 throw new ArgumentException("ValueJson is required for a condition.");
+            if (allowedEntityCodes is not null && !allowedEntityCodes.Contains(node.EntityCode.Trim()))
+                throw new ArgumentException("welcome_bonus conditions support only customer entity.");
             return;
         }
 
@@ -707,6 +753,18 @@ public class PointsRuleService
             return normalized;
 
         throw new ArgumentException($"Unsupported awardMode: {awardMode}");
+    }
+
+    private static string NormalizeAndValidateComplexRuleType(string? ruleType)
+    {
+        var normalized = string.IsNullOrWhiteSpace(ruleType)
+            ? PointsRuleTypes.ComplexRule
+            : PointsRuleTypes.Normalize(ruleType);
+
+        if (normalized is PointsRuleTypes.ComplexRule or PointsRuleTypes.WelcomeBonus)
+            return normalized;
+
+        throw new ArgumentException($"Unsupported complex rule type: {ruleType}");
     }
 
     private void AddConditionNodes(

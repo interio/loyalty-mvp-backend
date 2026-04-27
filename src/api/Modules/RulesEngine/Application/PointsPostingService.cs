@@ -177,6 +177,10 @@ public class PointsPostingService
         request.CustomerChannel = customer.BusinessSegment?.Trim();
         // Customer region maps to Customers.Address.Region.
         request.CustomerRegion = customer.Address?.Region?.Trim();
+        request.CustomerBusinessSegment = customer.BusinessSegment?.Trim();
+        request.CustomerType = customer.Type?.Trim();
+        request.CustomerStatus = customer.Status;
+        request.CustomerOnboardDate = customer.OnboardDate;
 
         // Idempotency: check if this invoice already exists in ledger scoped to tenant/customer.
         var existingTx = await _ledgerDb.PointsTransactions

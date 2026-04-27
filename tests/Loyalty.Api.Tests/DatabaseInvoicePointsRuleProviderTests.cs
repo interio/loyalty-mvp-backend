@@ -122,6 +122,32 @@ public class DatabaseInvoicePointsRuleProviderTests
     }
 
     [Fact]
+    public async Task GetRulesAsync_IgnoresWelcomeBonusRules_ForInvoiceEvaluation()
+    {
+        await using var db = CreateContext();
+        var tenantId = Guid.NewGuid();
+
+        var rule = new PointsRule
+        {
+            TenantId = tenantId,
+            Name = "Welcome bonus",
+            RuleType = "welcome_bonus",
+            Active = true,
+            Priority = 0,
+            RewardPoints = 100,
+            EffectiveFrom = DateTimeOffset.UtcNow.AddMinutes(-1)
+        };
+
+        db.PointsRules.Add(rule);
+        await db.SaveChangesAsync();
+
+        var provider = new DatabaseInvoicePointsRuleProvider(db, new NullLogger<DatabaseInvoicePointsRuleProvider>());
+        var rules = await provider.GetRulesAsync(tenantId);
+
+        Assert.Empty(rules);
+    }
+
+    [Fact]
     public async Task GetRulesAsync_RequiresValidConditions()
     {
         await using var db = CreateContext();

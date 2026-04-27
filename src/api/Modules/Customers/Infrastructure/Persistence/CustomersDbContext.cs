@@ -43,6 +43,7 @@ public class CustomersDbContext : DbContext
             e.Property(x => x.BusinessSegment).HasMaxLength(120);
             e.Property(x => x.OnboardDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
             e.Property(x => x.Status).HasDefaultValue(CustomerStatusCatalog.Active);
+            e.Property(x => x.WelcomeBonusAwarded).HasDefaultValue(false);
             e.Property(x => x.Address)
                 .HasConversion(
                     v => v == null ? null : JsonSerializer.Serialize(v, new JsonSerializerOptions()),

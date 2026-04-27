@@ -5,6 +5,7 @@ using Loyalty.Api.Modules.LoyaltyLedger.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.Transactions;
 using Loyalty.Api.Modules.Shared;
+using Microsoft.Extensions.Logging;
 
 namespace Loyalty.Api.Modules.Customers.Application;
 
@@ -60,22 +61,38 @@ public interface ICustomerService
 
     /// <summary>Updates loyalty tier for an existing customer.</summary>
     Task<Customer> UpdateTierAsync(Guid customerId, Guid tenantId, string tier, CancellationToken ct = default);
+
+    /// <summary>Awards welcome bonus once for an existing customer (manual admin operation).</summary>
+    Task<WelcomeBonusAwardResult> AwardWelcomeBonusAsync(
+        Guid customerId,
+        Guid tenantId,
+        string? actorEmail,
+        bool requireOnboardDateReached,
+        CancellationToken ct = default);
 }
 
 /// <summary>
 /// Customer module application service (profile + cached balance wiring).
 /// </summary>
-    public class CustomerService : ICustomerService, ICustomerLookup
-    {
-        private readonly CustomersDbContext _db;
-        private readonly LedgerDbContext _ledgerDb;
-        private bool ShouldShareTransaction => _db.Database.IsRelational() && _ledgerDb.Database.IsRelational();
+public class CustomerService : ICustomerService, ICustomerLookup
+{
+    private readonly CustomersDbContext _db;
+    private readonly LedgerDbContext _ledgerDb;
+    private readonly ICustomerWelcomeBonusService? _welcomeBonus;
+    private readonly ILogger<CustomerService>? _logger;
+    private bool ShouldShareTransaction => _db.Database.IsRelational() && _ledgerDb.Database.IsRelational();
 
-        /// <summary>Constructs the service with module DbContexts.</summary>
-        public CustomerService(CustomersDbContext db, LedgerDbContext ledgerDb)
-        {
-            _db = db;
+    /// <summary>Constructs the service with module DbContexts.</summary>
+    public CustomerService(
+        CustomersDbContext db,
+        LedgerDbContext ledgerDb,
+        ICustomerWelcomeBonusService? welcomeBonus = null,
+        ILogger<CustomerService>? logger = null)
+    {
+        _db = db;
         _ledgerDb = ledgerDb;
+        _welcomeBonus = welcomeBonus;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -227,6 +244,7 @@ public interface ICustomerService
                 await _ledgerDb.SaveChangesAsync(ct);
 
                 scope.Complete();
+                await TryAwardWelcomeBonusForNewCustomerAsync(customer, ct);
                 return customer;
             });
         }
@@ -240,6 +258,7 @@ public interface ICustomerService
         });
         await _db.SaveChangesAsync(ct);
         await _ledgerDb.SaveChangesAsync(ct);
+        await TryAwardWelcomeBonusForNewCustomerAsync(customer, ct);
         return customer;
     }
 
@@ -321,6 +340,26 @@ public interface ICustomerService
         return customer;
     }
 
+    /// <inheritdoc />
+    public Task<WelcomeBonusAwardResult> AwardWelcomeBonusAsync(
+        Guid customerId,
+        Guid tenantId,
+        string? actorEmail,
+        bool requireOnboardDateReached,
+        CancellationToken ct = default)
+    {
+        if (_welcomeBonus is null)
+            throw new Exception("Welcome bonus service is not configured.");
+
+        return _welcomeBonus.AwardAsync(
+            new AwardWelcomeBonusCommand(
+                customerId,
+                tenantId,
+                actorEmail,
+                requireOnboardDateReached),
+            ct);
+    }
+
     private async Task<List<Customer>> LoadPointsAsync(IQueryable<Customer> query, CancellationToken ct)
     {
         var customers = await query.ToListAsync(ct);
@@ -370,6 +409,31 @@ public interface ICustomerService
         }
 
         return normalized;
+    }
+
+    private async Task TryAwardWelcomeBonusForNewCustomerAsync(Customer customer, CancellationToken ct)
+    {
+        if (_welcomeBonus is null)
+            return;
+
+        try
+        {
+            await _welcomeBonus.AwardAsync(
+                new AwardWelcomeBonusCommand(
+                    customer.Id,
+                    customer.TenantId,
+                    ActorEmail: null,
+                    RequireOnboardDateReached: true),
+                ct);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(
+                ex,
+                "Welcome bonus evaluation failed for customer {CustomerId} in tenant {TenantId}.",
+                customer.Id,
+                customer.TenantId);
+        }
     }
 
 }
